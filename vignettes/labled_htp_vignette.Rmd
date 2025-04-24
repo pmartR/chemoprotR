@@ -1,0 +1,199 @@
+---
+title: "Labeled HTP Chemoproteomics Workflow"
+author: "Damon Leach, Kelly Stratton"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Labeled HTP Chemoproteomics Workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+### Introduction
+
+Within the `chemoprotR` package, there are capabilities for running both labeled and unlabeled TMT data. Here, we discuss the workflow for the labeled data. In order to run analyses for labeled TMT high-throughput (HTP) data, there are three main elements within this package:
+
+1. Front End Script
+2. Back End Code
+3. Automatically Generated Report
+
+An individual using this package only needs to be responsible for updating the front end script for the analyses to run based on the specific contexts of the data.
+
+### Before Running Scripts
+
+There are a few tasks that must be completed before a user can start updating the front end script.
+
+First, the user must create a folder for the project. Within that folder, the user must create 4 additional folders:
+
+- Code
+- Data
+- Processed_Data
+- Results
+
+The user then must place the excel files with the data into the "Data" folder. The user also places the front end script, report template, and bibliography file into the "Code" folder.
+
+Next, the user must create an R project. The user then selects the drop down menu on the top right corner of R Studio and selects the option "New Project". If the user does not have any current projects open, the drop down title will be "Project: (none)". Otherwise, the drop down menu will show the name of the current project.
+
+Next, select the option to create a project from an existing directory and select the main folder that was created for the project.
+
+By creating an R project, R is better equipped to be able to find files regardless of the exact file pathway for each individual computer, allowing for easier sharing abilities between individuals.
+
+### Front End Script
+
+This next portion of the vignette explains the different aspects of the front end script.
+
+##### Step 1: Set up File
+
+For this pipeline, the following packages are required:
+
+```{r}
+library(readxl)
+library(chemoprotR)
+library(here)
+```
+
+The following line of code helps R locate other files within the R Project and directory.
+
+```{r}
+here::i_am("Code/front_end_script_labeled.R")
+```
+
+##### Step 2: Specify Parameters
+
+Within the labeled TMT framework, there are around nine different sheets in the excel file. Of those sheets, the following five are currently used in statistical analyses:
+
+1. Mage
+2. T_Reporter_Ions_Typed
+3. T_Data_Package_Analysis_Jobs
+4. Sheet1 (Protein Collection Information)
+5. f_data
+
+Within each of these different sheets, there are varying columns that need to be specified. If these values remain consistent between different analyses, these default values can remain in place. However, if they vary from experiment to experiment, they will need to be updated accordingly.
+
+For `chemoprotR` functions to run smoothly, the user specifies the name of the excel file, the msgf threshold value to be used for filtering, the names of the different tabs in the spreadsheet, a select number of column names from a variety of those tabs, as well as some normalization information.
+
+For the purpose of this vignette, data is loaded using example data from the package `chemoprotR`. However, we include the line of code that will be used typically for the front end script.
+
+```{r, eval = FALSE}
+# data is the name of xlsx file that we are loading in
+data = "TMT_Practice_Dataset.xlsx"
+```
+
+```{r, echo = FALSE}
+data("label_setup")
+data = label_setup
+```
+
+```{r}
+# enter the msgf number that is important for this analysis
+msgf = 2.7113E-8
+
+# add in the sheet names
+tab_names <- data.frame(talias = "T_alias",
+                          analysis_jobs = "T_Data_Package_Analysis_Jobs",
+                          reporter_ions = "T_Reporter_Ions_Typed",
+                          mage = "Mage",
+                          protein_collection = "Protein_collection_data",
+                          fdata = "f_data")
+
+# add in the column name information
+mage_cols <- data.frame(job_name = "Job",
+                        scan_name = "Scan",
+                        peptide_name = "Peptide",
+                        protein_name = "Protein",
+                        qvalue_name = "QValue",
+                        msgf_specprob_name = "MSGF_SpecProb")
+
+analysis_cols <- data.frame(job_name = "Job",
+                            dataset_id_name = "Dataset_ID")
+
+reporter_cols <- data.frame(dataset_id_name = "Dataset",
+                            scan_name = "ScanNumber")
+
+fdata_cols <- data.frame(sampleID_name = "SampleID",
+                    group_name = "Grouping",
+                    job_name = "Job",
+                    replicate_name = "Replicate",
+                    plex_name = "Plex",
+                    ionization_name = "Ionization")
+
+protein_collection_cols <- data.frame(proteinName_name = "protein_name")
+
+normalization_info <- data.frame(reference_name = "Reference",
+                                 norm_fn = "mean",
+                                 backtransform = TRUE)
+```
+
+##### Step 3: Load in Data
+
+Once those values have been adjusted accordingly based on the experiment, the rest of the code should not have to be altered. In this code chunk, the user officially loads the data into R as a list and renames the elements of the list to be the tabnames from Excel.
+
+```{r, eval = FALSE}
+# put xlsx object into more R friendly formatting
+mydata <- read_excel(here("Data",data))
+sheet_names <- excel_sheets(here("Data",data))
+# this creates a list with each element being a sheet by its corresponding name
+dat_list <- lapply(sheet_names, function(x) {          # Read all sheets to list
+  as.data.frame(read_excel(here("Data",data),sheet = x))})
+names(dat_list) <- sheet_names
+```
+
+```{r, echo = FALSE}
+dat_list <- data
+```
+
+##### Step 4: Clean the Data
+
+Within this code chunk, the user cleans data to create an object that is compatible with `pmartR`. The package `pmartR` has many built in capabilities from quality control filtering and normalization to data visualizations and statistical analyses. By manipulating the data to fit an S3 object compatible with `pmartR`, `chemoprotR` is able to utilize those capabilities.
+
+```{r}
+# step 4: run cleaning chemoprot function ######################################
+# create pmartObj
+htp_pmart_cleaned <- clean_chemoprot_labeled(dat_list,tab_names,mage_cols,analysis_cols,
+                                        reporter_cols,fdata_cols,protein_collection_cols)
+# save the results and msgf/job information
+labeled_information <- list(pmartObj = htp_pmart_cleaned,msgf = msgf,fdata_info = fdata_cols,
+                            analysis_info = analysis_cols,mage_info = mage_cols,norm_info = normalization_info,
+                            protein_info = protein_collection_cols)
+```
+
+```{r, eval = FALSE}
+saveRDS(labeled_information,paste0(here("Data",data),"labeled_information.RDS"))
+```
+
+##### Step 5: Render Report
+
+The last step is the render the report. For labeled data, the data is analyzed based on job number, so if there are more than one job being ran, this code runs iteratively to render as many reports as there are jobs in the experiment.
+
+```{r, eval = FALSE}
+# run this for loop to generate reports for each job
+for(i in 1:length(htp_pmart_cleaned)){
+  rmarkdown::render(input = here("Code","report_labeled.Rmd"),
+                    output_file = paste0("report_labeled_job_",unique(htp_pmart_cleaned[[i]]$e_meta$Job),".html"))
+}
+```
+
+### Report
+
+The reports that are generated are rendered automatically and the user does not need to alter the Rmarkdown file pertaining to the report. The file is broken down into the following sections:
+
+- Software Used
+- Isobaric Normalization
+  - The data is normalized with regards to the reference plate
+- Potential Outliers
+  - Potential outliers are identified and plotted. If the user specifies any outliers to be removed in the front-end script, those samples are removed here
+- Filters
+  - Number of missing values per sample are plotted
+  - Remove molecules with MSGF spectral probability greater than the specified value
+  - Sum up peptide redundancies
+- Normalization
+  - Data is normalized using either median or mean centering. The user can specify whether the data should be backtransformed after undergoing normalization or not.
+- Protein Quantitation
+  - Rollup method
+- Reverse Hits/Contaminants
+  - Proteins associated with reverse hits or contaminants are removed from the data.
+- Statistical Results
+  - ANOVA and g-test analyses are conducted on the data
+  - Bar plots and volcano plots to visualize the results
+  - Table containing fold change information, count data, and significance levels for each molecule is created
+  - Table containing the log2 normalized abundance values are also generated
+- References

@@ -1,0 +1,677 @@
+---
+title: "TMT Data Analysis Template"
+author: "Author: Gerard Lomas | Ran By: "
+date: "6/11/2022"
+output: html_document
+runtime: shiny
+  
+---
+## Workflow Overview
+  **Steps in Bold will require user input**
+
+  I.  Set Working Environment 
+        1. Load R Packages
+        2. Create Functions
+  II. **Load Initial Data Files**
+        1. T_Data_Package_Analysis_Jobs 
+        2. T_Reporter_Ions_Typed
+        3. Mage_Processor SicStats Results
+        4. Protein Collection List 
+  III. Clean Data
+        1. Combine T_data_Package_Analysis_Jobs with Mage_Processor_SicStats_Results
+        2. **Enter Filtering Parameters (Job/Dataset_ID Selection & MSGFSpecProb Filter)**
+        3. Create Unique ID (Dataset#Scan)
+        4. Clean Protein Syntax
+        5. Combine Initial Data into a single dataframe
+  IV. Sum Redundant Peptides
+  V.  Box Plots and Central Tendency Normalization 
+        1. Pre-Normalization Box Plot 
+        2. Central Tendency Normalization
+        3. Normalized Box Plot 
+        4. Anti log of Reporter Ions 
+  VI. Protein Rollup 
+  VII. Remove Reverse Hits and Contaminants 
+  VIII. Add Protein Collection List
+  IX. Statistical Analysis for each Comparision (ABP vs. NP, ABP vs. Comp)
+        1. Create dataframe with only Test groups 
+        2. Count Valid Values 
+        3. Apply Presence/Absence Filter **(Save Resulting dataset)**
+        4. Apply t-Test Valid Values Filter 
+        5. Run t-test function 
+        6. Run log2 Fold-Change function **(Save Resulting datast)**
+  X. Create and Save Documentation and Datasets 
+  
+  
+
+# **I. Set Working Environment**
+```{r}
+#setwd("~/Desktop/")
+```
+
+## 1. Load R Packages 
+```{r, message=FALSE}
+library(tidyverse)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(ggvis)
+library(rmarkdown)
+library(readxl)
+library(dplyr)
+library(reshape2)
+library(matrixTests)
+library(gtools)
+library(knitr)
+library(kableExtra)
+library(shiny)
+library(DT)
+
+```
+
+## 2. Create Functions
+```{r}
+MeanCenter.Sub <- function(Data, Mean=TRUE, centerZero=TRUE)
+  {
+  ndata <- Data
+  
+  # Compute the mean or median of each column in matrix Data, storing in vector Center
+  if (Mean)
+    Center <- apply(Data,2,mean,na.rm=TRUE)
+  else
+    Center <- apply(Data,2,median,na.rm=TRUE)
+  
+  # Transform vector Center into a matrix
+  centerM <- matrix(Center,nrow=dim(Data)[1],ncol=dim(Data)[2], byrow=TRUE)
+  
+  if (centerZero)
+  {
+    # For data in each column, subtract the
+    # column mean or median from the values, 
+    # centering at zero
+    ndata <- Data - centerM
+  }
+  else
+  {
+    # For data in each column, subtract the
+    # column mean or median from the values, 
+    # centering at the maximum mean or median
+    newAverage <- max(Center,na.rm=TRUE)
+    ndata <- Data - centerM + newAverage
+  }
+  return(ndata)
+}
+```
+
+
+# II. Load Initial Data Files
+
+### 1. T_Data_Package_Analysis_Jobs
+```{r, message=FALSE, warning=FALSE} 
+t_data_package_analysis_jobs <- read_excel(paste0(here::here(),"/Data/TMT_Practice_Dataset.xlsx"), sheet = "T_Data_Package_Analysis_Jobs")
+
+DT::datatable(
+  t_data_package_analysis_jobs,
+  clas='hover cell-border stripe',
+  options = list(scrollX = TRUE, pageLength=5)
+)
+```
+
+
+### 2. T_reporter_Ions_Typed
+```{r, message=FALSE, warning=FALSE}
+T_data_df <- read_excel(paste0(here::here(),"/Data/TMT_Practice_Dataset.xlsx"), sheet = "T_Reporter_Ions_Typed")
+DT::datatable(
+  T_data_df,
+  clas='hover cell-border stripe',
+  options = list(scrollX = TRUE, pageLength=5)
+)
+```
+
+
+### 3. Mage_Processor Results
+```{r, message=FALSE, warning=FALSE}
+
+mage_df <- read_excel(paste0(here::here(),"/Data/TMT_Practice_Dataset.xlsx"), sheet = "Mage")
+DT::datatable(
+  mage_df,
+  clas='hover cell-border stripe',
+  options = list(scrollX = TRUE, pageLength=5)
+)
+
+```
+
+
+### 4. Protein Collection
+```{r, message=FALSE, warning=FALSE}
+
+Protein_collection <- read_excel(paste0(here::here(),"/Data/TMT_Practice_Dataset.xlsx"), sheet = "Sheet1")
+DT::datatable(
+  Protein_collection,
+  clas='hover cell-border stripe',
+  options = list(scrollX = TRUE, pageLength=5)
+)
+```
+
+
+# III. Clean Data 
+
+    *In these steps, combine 3 of the 4 initial datasets into one (not including Protein Collection List). Combine the Mage_Processor SicStats and T_Data_Package_Analysis_Jobs together and filter for the selected Job or Dataset_ID number. Next, set the pre-determined MSGF_SpecProb cut off. After filtering, create a unique identifier by combining the 'Dataset' and 'Scan' columns, remove astriks syntax from 'Peptide', and merge the Filtered Mage data and T_Reporter_Ions together by the unique ID ('Dataset#Scan').*
+
+### 1. Combine T_data_Package_Analysis_Jobs with Mage_Processor_SicStats_Results
+```{r, message=FALSE, warning=FALSE}
+  #Merge t_data_package_analysis_jobs to mage_df by column "Job"
+Mage <- merge(mage_df, t_data_package_analysis_jobs, by = ("Job"))
+
+DT::datatable(
+  Mage,
+  clas='hover cell-border stripe',
+  options = list(scrollX = TRUE, pageLength=5)
+)
+```
+
+
+### 2. Set Filtering Parameters
+***Enter/Edit the selected Mage Job for this Analysis***
+```{r}
+  #Select certain job ID 
+Mage_job = Mage %>% filter(Job == 2044576)
+
+```
+
+
+***Enter/edit the MSGf_SpecProb value (for rat, set to <= 2.7113E-8)***
+```{r}
+#Filter for pre-set FDR (DTRA Rat data MSGF_SpecProb <= 2.7113E-8) ###This is calculated based on an analysis of the global proteomics of the test organism
+Mage_fdr_df = Mage_job %>% filter(MSGF_SpecProb <= 2.7113E-8)
+
+```
+
+
+###### Remove unnecessary columns from Mage_fdr_df
+```{r, message=FALSE, warning=FALSE}
+  #3. Remove unnecessary columns from Mage_fdr_df -> Create new Mage_df with only 'Job', 'QValue', 'MSGF_SpecProb', 'Peptide', 'Protein', 'Scan' columns
+Mage_fdr_filtered = Mage_fdr_df[, c('Job', 'Dataset_ID', 'QValue', 'MSGF_SpecProb', 'Peptide', 'Protein', 'Scan')]
+
+
+```
+
+
+### 3. Create Unique Identifiers (Dataset#Scan)
+```{r, message=FALSE, warning=FALSE}
+#Create and Merge Dataset#Scan Columns for Mage_fdr_filtered and T_data_df ####
+  #Create Dataset#Scan Column for df: T_data_df 
+Mage_fdr_filtered$DatasetScan = paste(Mage_fdr_filtered$Dataset_ID, '#', Mage_fdr_filtered$Scan)
+
+  #Create Dataset#Scan Column for df: T_data_df 
+T_data_df$DatasetScan = paste(T_data_df$Dataset, '#', T_data_df$ScanNumber)
+
+  #Inner_join (merge) Mage_fdr_filtered and T-data_df into new df (merged_df) by column DatasetScan for all Mage_fdr_filtered entries
+merged_df = inner_join(Mage_fdr_filtered, T_data_df, by = "DatasetScan")
+
+```
+
+
+### 4. Clean Peptide Syntax
+```{r, message=FALSE, warning=FALSE}
+  #Remove "*" from peptides and replace with "" (gsub function -> Removes 3+ occurances)
+merged_df$Peptide <- gsub("*","",as.character(merged_df$Peptide), fixed = TRUE)
+
+  #Check for and count remaining "*" in peptide 
+merged_df$Astrisk_count <- str_count(merged_df$Peptide,'\\*')
+#Verify all * have been removed by checking Astrisk_count column. All should have 0 value
+```
+
+### 5. Combine Initial Data Into a Single Dataframe
+**Check for both dataset, scan, etc. columns.
+```{r}
+
+  #3. Create new df with only 'Job', 'QValue', 'Peptide', 'Protein', 'Ion Values' columns
+Combined_df = merged_df[, c( 1, 3, 5:6, 16:25)]
+
+DT::datatable(
+  Combined_df,
+  clas='hover cell-border stripe',
+  options = list(scrollX = TRUE, pageLength=5)
+)
+
+#**********************Display Columns ***********************************
+```
+
+
+# IV. Sum Redundant Peptides
+
+**Combine Redundant Peptides and sum their reporter ion values. Apply a counter to determine the amount of redundancy per peptide**
+```{r, message=FALSE, warning=FALSE}
+# SUM REDUNTANT REPORTER ION INTENSITIES ####
+# Remove peptide redundancy and sum Reporter Ion values
+
+# This line will combine duplicate Peptides and sum all ions
+    # detach("package:plyr", unload = TRUE) ###This line is needed if dplyr error n()) occurs 
+Pep_redundency <- Combined_df %>%
+  group_by(Peptide) %>%
+  summarise(across(Ion_126.128:Ion_131.138, sum))
+
+# Create df with columns that were removed in Pep_redundency
+  # Counts the number of duplicate $Peptides
+Missing_Columns <- Combined_df %>%
+  group_by(Peptide) %>% 
+  mutate(Pep_count = n()) 
+  # Remove all reporter Ion columns 
+Missing_Columns <- Missing_Columns %>%
+  select('Job','QValue', 'Protein', 'Peptide' , 'Pep_count')
+  # Remove all redundancy of $Peptide and other columns missing from df1 
+Missing_Columns <- distinct(Missing_Columns, Peptide, .keep_all = TRUE)
+
+# Merge these two dataframes together and (B)re-organize 
+Analysis_df = merge(Missing_Columns, Pep_redundency, by = 'Peptide', all.x = FALSE) 
+# Re-organize the df 
+Analysis_df = Analysis_df %>%
+  select('Job', 'QValue', 'Protein', 'Peptide', 'Pep_count', 6:15)
+
+```
+
+**Analysis dataframe - This datatable should have a column for Job, QValue, Protein, Peptide, Pep_count, and all samples (reference sample, ABP, Comp, NP)**
+```{r}
+DT::datatable(
+  Analysis_df,
+  clas='hover cell-border stripe',
+  options = list(scrollX = TRUE, pageLength=5)
+)
+
+```
+
+
+# V. Box Plots and Central Tendency Normalization
+### 1. Pre-Normalization Box Plot 
+```{r, message=FALSE, warning=FALSE}
+# LOG TRANSFORMATION, CENTRAL TENDENCY NORMALIZATION, ANTILOG ####
+# Create Box blot before Central Tendency Normalization
+  # Group samples for box plot (reference, ABP, Competitor, NP)
+bp_initial = Analysis_df %>%
+  select( 6:15)
+colnames(bp_initial) <-c('ref', 'ABP1','ABP2', 'ABP3', 'Comp1', 'Comp2', 'Comp3', 'NP1', 'NP2', 'NP3')
+
+bp_initial = log2(bp_initial)
+  # melt "test" into Variables and values for boxplot
+bp_initial_plot <- melt(bp_initial)
+
+  # Initial Box Plot 
+ggplot(bp_initial_plot, aes(
+  x = variable, 
+  y = value, 
+  fill = variable), na.rm=TRUE) +
+  geom_boxplot() 
+
+
+```
+
+
+### 2. Central Tendency Normalization
+
+**Central Tendency Normalization is applied to each sample group separately**
+
+```{r, message=FALSE, warning=FALSE}
+
+# Perform log2 Transformation (reduces varience)
+log2_data <- Analysis_df
+log2_data[,6:15] <- log(log2_data[6:15], 2)
+
+# Separate sample groups by creating individual dataframes
+  # df with only ABP samples 
+Cen_ten_ABP <- log2_data[7:9]
+  # Remove infinite errors 
+is.na(Cen_ten_ABP) <- do.call(cbind, lapply(Cen_ten_ABP, is.infinite)) 
+  # df with only Comp samples
+Cen_ten_Comp <- log2_data[10:12]
+  # Remove infinite errors 
+is.na(Cen_ten_Comp) <- do.call(cbind, lapply(Cen_ten_Comp, is.infinite))
+  # df with only NP samples
+Cen_ten_NP <- log2_data[13:15]
+  # Remove infinite errors 
+is.na(Cen_ten_NP) <- do.call(cbind, lapply(Cen_ten_NP, is.infinite))
+
+#Apply Central Tendency Normalization for each sample group (Probe, competitor and NP)
+      #Function workflow -> (1) Compute mean of each column/replicate. (2) subtract the column mean from the values while centering at the max mean)
+Mean_cen_ABP <- MeanCenter.Sub(Cen_ten_ABP, Mean=TRUE, centerZero = FALSE)
+Mean_cen_Comp <- MeanCenter.Sub(Cen_ten_Comp, Mean=TRUE, centerZero = FALSE)
+Mean_cen_NP <- MeanCenter.Sub(Cen_ten_NP, Mean=TRUE, centerZero = FALSE)
+
+# Combine results into one df 
+Normalized_df2 <- cbind(log2_data[1:6], Mean_cen_ABP, Mean_cen_Comp, Mean_cen_NP)
+```
+
+### 3. Normalized Box Plot
+```{r, message=FALSE, warning=FALSE}
+
+# Create Box Plot of the Normalized data
+bp_normal = Normalized_df2 %>%
+  select(7:15) 
+
+bp_normal_plot <- melt(bp_normal)
+
+# Box Plot 
+ggplot(bp_normal_plot, aes(
+  x = variable, 
+  y = value, 
+  fill = variable), na.rm=TRUE) +
+  geom_boxplot() 
+
+```
+
+### 4. Antilog of Reporter Ion Values 
+```{r,  message=FALSE, warning=FALSE}
+# Antilog of reporter ions 
+  # Copy Normalized_df2 dataframe
+Antilog_df <- Normalized_df2
+  # Remove infinate errors (NA) from reporter ion column
+is.na(Antilog_df$Ion_126.128) <- do.call(cbind, lapply(Antilog_df$Ion_126.128, is.infinite))
+  # Take antilog of all reporter ion columns 
+Antilog_df[,6:15] <-  2^(Antilog_df[6:15])
+
+```
+
+
+# VI. Protein Roll Up 
+**Combine Redundant Proteins and sum their reporter ion values. Apply a counter (Unique_Pep_count) to determine the amount of Unique peptides per Protein. Sum the redundant peptides to get total peptides per protein (Pep_count)**
+```{r, message=FALSE, warning=FALSE}
+# PROTEIN ROLLUP ####
+# Protein Rollup - Combine duplicate Proteins and sum all ions
+  # Duplicate Antilog_df 
+Pro_redundency <- Antilog_df
+  # Combine duplicate Proteins and sum all ions
+Pro_redundency <- Pro_redundency%>%
+  group_by(Protein) %>%
+  summarise(across(Ion_126.128:Ion_131.138,sum, na.rm = TRUE))
+  # Change 0 values back to NA
+Pro_redundency <- na_if(Pro_redundency, 0)
+
+# Create df with columns that were removed in Antilog_df
+  # Counts the number of duplicate $Proteins into Unique_pep_count
+Missing_Columns_pro <- Antilog_df %>%
+  group_by(Protein) %>% 
+  mutate(Unique_Pep_count = n()) 
+
+  # Remove all reporter Ion columns 
+Missing_Columns_pro <- Missing_Columns_pro %>%
+  select('Job','QValue', 'Protein', 'Unique_Pep_count' , 'Peptide' , 'Pep_count')
+
+  # Create new df with column with total protein count
+Total_pep_count <- Missing_Columns_pro %>%
+  group_by(Protein) %>%
+  summarise(across(Pep_count, sum))
+
+  # Important - this will remove all $Protein redundancy 
+Missing_Columns_pro2 <- distinct(Missing_Columns_pro, Protein, .keep_all = TRUE)
+  # Create C
+Missing_Columns_pro2 <- Missing_Columns_pro2[1:5]
+
+#3. Merge the two dataframes together and (B)re-organize 
+  # Merge Missing, Col, with Total_pep_count 
+Roll_up_df = merge(Missing_Columns_pro2, Total_pep_count,  by = 'Protein', all.x = FALSE) 
+  # Merge with Pro_redundency 
+Roll_up_df2 = merge(Roll_up_df, Pro_redundency, by = 'Protein', all.x = FALSE) 
+  # Remove 'Peptide' and 'QValue' Columns 
+Roll_up_df2 <- subset(Roll_up_df2, select = -Peptide)
+Roll_up_df2 <- subset(Roll_up_df2, select = -QValue)
+
+  
+
+DT::datatable(
+  Roll_up_df2,
+  clas='hover cell-border stripe',
+  extensions = 'Buttons',
+  options = list(scrollX = TRUE, 
+                 pageLength=10, 
+                 dom='Bfrtip',
+                 buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))
+)
+
+```
+
+
+
+# VII. Remove Reverse Hits and Contaminants
+**Create two columns to ID rows as TRUE/FALSE if Protein column contains "XXX" or "Contaminant." Remove all rows that contain a TRUE conditional in column "XXX" or "Contaminant"**
+```{r}
+# Add observation counts 
+  # Copy Roll_up_df2 dataframe  
+xxx_rm <- Roll_up_df2 
+
+  # Create column "XXX" and "Contaminants and ID if Protein column contains these elements 
+xxx_rm$XXX = grepl("XXX", xxx_rm$Protein, ignore.case = TRUE)
+xxx_rm$Contaminant = grepl("Contaminant", xxx_rm$Protein, ignore.case = TRUE)
+
+  # Create dataframe Stat_df containing rows where XXX == FALSE and Contaminant == FALSE elements
+Stat_df = filter(xxx_rm, xxx_rm$XXX == FALSE & xxx_rm$Contaminant == FALSE)
+```
+
+**Scroll to the right to check if all XXX and Reverse Hits have been removed. All values should be 'FALSE'**
+```{r}
+  # Display Stat_df Dataframe
+DT::datatable(
+  Stat_df,
+  clas='hover cell-border stripe',
+  extensions = 'Buttons',
+  options = list(scrollX = TRUE, 
+                 pageLength=10, 
+                 dom='Bfrtip',
+                 buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))
+)
+
+```
+
+# VIII. Add Protein Collection List 
+```{r}
+
+Stat_Protein_df <- merge(x = Stat_df, y = Protein_collection, by.x = ("Protein"), by.y = ("Protein_Name"), all.x = TRUE)
+
+
+DT::datatable(
+  Stat_Protein_df,
+  clas='hover cell-border stripe',
+  extensions = 'Buttons',
+  options = list(scrollX = TRUE, 
+                 pageLength=5, 
+                 dom='Bfrtip',
+                 buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))
+)
+
+```
+
+
+# IX. Statistical Analysis for each Comparision (ABP vs. NP)
+### 1. Create Dataframe with Only Test Group Reporter Ions (ABP, NP)
+  **Check to make sure ABP and NP columns are in this dataframe**
+
+```{r}
+ABP_NP_df <- cbind(Stat_Protein_df[1:4], Stat_Protein_df[6:8], Stat_Protein_df[12:14], Stat_Protein_df[17:23])
+
+DT::datatable(
+  ABP_NP_df,
+  clas='hover cell-border stripe',
+  extensions = 'Buttons',
+  options = list(scrollX = TRUE, 
+                 pageLength=5, 
+                 dom='Bfrtip',
+                 buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))
+)
+
+```
+
+
+### 2. Count Valid Values (ABP vs. NP)
+```{r}
+# Count for ABP samples per protein
+ABP_NP_df$Count_ABP <- rowSums(!is.na(ABP_NP_df[,5:7]))
+
+# Count for NP samples per protein 
+ABP_NP_df$Count_NP <- rowSums(!is.na(ABP_NP_df[,8:10]))
+
+```
+
+### 3. Apply Presence Absence Filter (ABP vs. NP)
+
+**Save Resulting Dataset (ABP vs. NP Pres_Abs Results) **
+```{r}
+ABP_NP_Pres_Abs = filter(ABP_NP_df, ABP_NP_df$Count_ABP >= 2 & ABP_NP_df$Count_NP <= 1)
+
+DT::datatable(
+  ABP_NP_Pres_Abs,
+  clas='hover cell-border stripe',
+  extensions = 'Buttons',
+  options = list(scrollX = TRUE, 
+                 pageLength=5, 
+                 dom='Bfrtip',
+                 buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))
+) 
+```
+
+### 4. Apply t-Test Valid Values Filter (ABP vs. NP)
+```{r}
+ABP_NP_ttest = filter(ABP_NP_df, ABP_NP_df$Count_ABP >= 2 & ABP_NP_df$Count_NP > 1)
+
+```
+
+### 5. Run t-Test Function (ABP vs. NP)
+
+```{r}
+# Log2 Transform Reporter Ions 
+ABP_NP_log2 <- cbind(ABP_NP_ttest[1:4], log2(ABP_NP_ttest[5:10]), ABP_NP_ttest[11:19]) 
+
+# t-Test function ABP vs. NP
+ABP_NP_log2_Final <- cbind(ABP_NP_log2, row_t_welch(ABP_NP_log2[5:7], ABP_NP_log2[8:10], alternative = "greater"))
+
+```
+
+### 6. Run log2 Fold-Change Function (ABP vs. NP)
+```{r}
+# Re-organize dataframe to add t-test Results 
+ABP_NP_Results <- ABP_NP_log2_Final
+
+# Calculate and append Fold Change
+ABP_NP_Results$Log2FC <- (rowMeans(ABP_NP_log2_Final[5:7], na.rm = TRUE) - rowMeans(ABP_NP_log2_Final[8:10], na.rm = TRUE))
+```
+### ABP vs. NP t_test and log2 FC Results
+**Save Resulting Dataset (ABP vs. NP t-Test Results)**
+```{r}
+DT::datatable(
+  ABP_NP_Results,
+  clas='hover cell-border stripe',
+  extensions = 'Buttons',
+  options = list(scrollX = TRUE, 
+                 pageLength=5, 
+                 dom='Bfrtip',
+                 buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))
+)
+```
+
+**Re-Orangize Dataframe**
+```{r}
+# Note *Consider appending base and log2 df by Protein and not cbind*
+#ABP_NP_ttest_results <- cbind(ABP_NP_Results[1:2], ABP_NP_ttest[3:8], ABP_NP_Results[3:8], ABP_NP_Results[10], ABP_NP_Results[9])
+
+```
+
+
+# IX. Statistical Analysis for each Comparison (ABP vs. Comp)
+### 1. Create Dataframe with Only Test Group Reporter Ions (ABP, Comp)
+  **Check to make sure ABP and Comp Reporter Ion columns are in this dataframe**
+
+```{r}
+ABP_Comp_df <- cbind(Stat_Protein_df[1:4], Stat_Protein_df[6:8], Stat_Protein_df[9:11], Stat_Protein_df[17:23])
+
+DT::datatable(
+  ABP_Comp_df,
+  clas='hover cell-border stripe',
+  extensions = 'Buttons',
+  options = list(scrollX = TRUE, 
+                 pageLength=5, 
+                 dom='Bfrtip',
+                 buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))
+)
+
+```
+
+
+### 2. Count Valid Values (ABP vs. Comp)
+```{r}
+# Count for ABP samples per protein
+ABP_Comp_df$Count_ABP <- rowSums(!is.na(ABP_Comp_df[,5:7]))
+
+# Count for Comp samples per protein 
+ABP_Comp_df$Count_Comp <- rowSums(!is.na(ABP_Comp_df[,8:10]))
+
+```
+
+### 3. Apply Presence Absence Filter (ABP vs. Comp)
+
+**Save Resulting Dataset (ABP vs. Comp Pres_Abs Results) **
+```{r}
+ABP_Comp_Pres_Abs = filter(ABP_Comp_df, ABP_Comp_df$Count_ABP >= 2 & ABP_Comp_df$Count_Comp <= 1)
+
+DT::datatable(
+  ABP_Comp_Pres_Abs,
+  clas='hover cell-border stripe',
+  extensions = 'Buttons',
+  options = list(scrollX = TRUE, 
+                 pageLength=5, 
+                 dom='Bfrtip',
+                 buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))
+)
+
+```
+
+### 4. Apply t-Test Valid Values Filter (ABP vs. Comp)
+```{r}
+ABP_Comp_ttest = filter(ABP_Comp_df, ABP_Comp_df$Count_ABP >= 2 & ABP_Comp_df$Count_Comp > 1)
+
+```
+
+### 5. Run t-Test Function (ABP vs. NP)
+```{r}
+# Log2 Transform Reporter Ions 
+ABP_Comp_log2 <- cbind(ABP_Comp_ttest[1:4], log2(ABP_Comp_ttest[5:10]), ABP_Comp_ttest[11:19]) 
+
+# t-Test function ABP vs. Comp
+ABP_Comp_log2_Final <- cbind(ABP_Comp_log2, row_t_welch(ABP_Comp_log2[5:7], ABP_Comp_log2[8:10], alternative = "greater"))
+```
+
+
+### 6. Run log2 Fold-Change Function (ABP vs. Comp)
+```{r}
+# Re-organize dataframe to add t-test Results 
+ABP_Comp_Results <- ABP_Comp_log2_Final
+
+# Calculate and append Fold Change
+ABP_Comp_Results$Log2FC <- (rowMeans(ABP_Comp_log2_Final[5:7], na.rm = TRUE) - rowMeans(ABP_Comp_log2_Final[8:10], na.rm = TRUE))
+```
+
+### ABP vs. Comp Results
+**Save Resulting Dataset (ABP vs. Comp t-Test Results)**
+```{r}
+DT::datatable(
+  ABP_Comp_Results,
+  clas='hover cell-border stripe',
+  extensions = 'Buttons',
+  options = list(scrollX = TRUE, 
+                 pageLength=5, 
+                 dom='Bfrtip',
+                 buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))
+)
+```
+
+
+```{r}
+# Note *Consider appending base and log2 df by Protein and not cbind*
+#ABP_Comp_ttest_results <- cbind(ABP_Comp_Results[1:2], ABP_Comp_ttest[3:8], ABP_Comp_Results[3:8], ABP_Comp_Results[10], ABP_Comp_Results[9])
+
+```
+
+# X. Create and Save Documentation and Datasets 
+**Save the code file through R.studio. (2) Save datasets from user interface. (3) Save user interface rMarkdown Document by selecting "Open in Browser" tab (top left), then save as pdf. 
+
+
+###Session Info: 
+```{r}
+sessionInfo()
+```

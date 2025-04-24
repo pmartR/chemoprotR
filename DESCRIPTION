@@ -1,0 +1,30 @@
+Package: chemoprotR
+Type: Package
+Title: Highthroughput chemoproteomics data analysis
+Version: 0.1.0
+Authors@R: 
+    c(person("Damon", "Leach", email = "damon.leach@pnnl.gov", role = c("aut", "cre")),
+    person("Kelly", "Stratton", email = "kelly.stratton@pnnl.gov", role = c("aut")))
+Maintainer: Damon Leach <damon.leach@pnnl.gov>
+Description: Provides functions to enable high-throughput chemoproteomics analyses.
+License: BSD
+Depends:
+  R (>= 3.0.0)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+LazyData: true
+VignetteBuilder: knitr
+Imports:
+    magrittr,
+    pmartR,
+    dplyr,
+    tidyr,
+    tibble,
+    here,
+    readxl,
+    rlang
+Suggests:
+    rmarkdown,
+    knitr,
+    testthat (>= 3.0.0)

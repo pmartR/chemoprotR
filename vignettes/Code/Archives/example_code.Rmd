@@ -1,0 +1,115 @@
+---
+title: "ABPP Proteomics Statistical Analysis Example"
+author: "Kelly Stratton"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(pmartR)
+library(openxlsx)
+library(here)
+
+
+here::i_am("Code/example_code.Rmd")
+```
+
+## Data Overview
+
+Data has been filtered to keep
+
+- has 2 or more values among the 4 reps in the probe group
+
+- has 1 or less values among the 4 reps in the competition group
+
+```{r read data}
+# working directory is where the data is located
+mydata <- read.xlsx(here("Data", "prot_data.xlsx"))
+
+samp_column <- c(grep("ABP_", names(mydata)), grep("Comp_", names(mydata)))
+
+# make data frame of protein values
+edata <- mydata[ , c(2, samp_column)]
+
+# make data frame of sample information (same names must match column names in edata)
+fdata <- data.frame(SampleID = names(edata)[-1], group = rep(c("ABP", "Comp"), each = 4))
+
+# make data frame of protein metadata
+meta_column <- setdiff(1:ncol(mydata), c(1, samp_column))
+emeta <- mydata[ , meta_column]
+
+# make proData object for use with pmartR
+myprot <- as.proData(e_data = edata, f_data = fdata, e_meta = emeta, 
+                     edata_cname = "Protein", fdata_cname = "SampleID", emeta_cname = "Protein",
+                     is_normalized = TRUE)
+
+summary(myprot)
+# plot(myprot, color_by = "group")
+
+# transform to log scale
+myprot <- edata_transform(myprot, data_scale = "log2")
+plot(myprot, color_by = "group")
+```
+
+## G-test
+
+The g-test, or independence of missing data (IMD) test compares groups based on presence/absence of a biomolecule. Results are available in the "gtest_results.xlsx" file, which includes columns for:
+
+- Protein = protein name
+
+- Count_ABP and Count_Comp = number of observed values in each group
+
+- Mean_ABP and Mean_Comp = mean of observed values (excludes missing values)
+
+- Fold_change_ABP_vs_Comp = log2 fold change, when both groups contain observed values
+
+- P_value_G_ABP_vs_Comp = p-value resulting from the g-test (based on presence/absence)
+
+- Flag_G_ABP_vs_Comp = significance flag; 0 if p-value not significant; 1 if p-value < 0.05 and more observed values in ABP group; -1 if p-value < 0.05 and fewer observed values in ABP group
+
+```{r stats, echo=FALSE}
+# myfilter <- imdanova_filter(myprot)
+# plot(myfilter, min_nonmiss_anova = 3, min_nonmiss_gtest = 2)
+# plot(myfilter, min_nonmiss_gtest = 2)
+
+# define groups
+myprot <- group_designation(myprot, main_effects = "group")
+
+saveRDS(myprot, here("Processed_Data", "prot_obj.RDS"))
+
+mystats <- imd_anova(myprot, test_method = "gtest")
+# write.xlsx(mystats, "gtest_results.xlsx")
+
+plot(mystats)
+
+# do both g-test and ANOVA
+mystats2 <- imd_anova(myprot, test_method = "combined")
+# write.xlsx(mystats2, "gtest_anova_results.xlsx")
+
+saveRDS(mystats2, here("Results", "statRes_imdanova.RDS"))
+```
+
+```{r}
+# make trelliscope display
+
+mytrelli <- as.trelliData(omicsData = myprot, statRes = mystats2)
+
+summary(mytrelli)
+
+mytrelli %>% 
+  trelli_panel_by("Protein") %>%
+  trelli_missingness_bar(cognostics = c("n", "mean", "median", "sd", "p_value", "fold_change"), single_plot = TRUE)
+
+
+mytrelli2 <- as.trelliData(statRes = mystats2)
+
+summary(mytrelli2)
+
+mytrelli2 %>% 
+  trelli_panel_by("Protein") %>%
+  trelli_missingness_bar(single_plot = TRUE)
+
+```
+

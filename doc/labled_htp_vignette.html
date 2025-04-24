@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Damon Leach, Kelly Stratton" />
+
+
+<title>Labeled HTP Chemoproteomics Workflow</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Labeled HTP Chemoproteomics Workflow</h1>
+<h4 class="author">Damon Leach, Kelly Stratton</h4>
+
+
+
+<div id="introduction" class="section level3">
+<h3>Introduction</h3>
+<p>Within the <code>chemoprotR</code> package, there are capabilities
+for running both labeled and unlabeled TMT data. Here, we discuss the
+workflow for the labeled data. In order to run analyses for labeled TMT
+high-throughput (HTP) data, there are three main elements within this
+package:</p>
+<ol style="list-style-type: decimal">
+<li>Front End Script</li>
+<li>Back End Code</li>
+<li>Automatically Generated Report</li>
+</ol>
+<p>An individual using this package only needs to be responsible for
+updating the front end script for the analyses to run based on the
+specific contexts of the data.</p>
+</div>
+<div id="before-running-scripts" class="section level3">
+<h3>Before Running Scripts</h3>
+<p>There are a few tasks that must be completed before a user can start
+updating the front end script.</p>
+<p>First, the user must create a folder for the project. Within that
+folder, the user must create 4 additional folders:</p>
+<ul>
+<li>Code</li>
+<li>Data</li>
+<li>Processed_Data</li>
+<li>Results</li>
+</ul>
+<p>The user then must place the excel files with the data into the
+“Data” folder. The user also places the front end script, report
+template, and bibliography file into the “Code” folder.</p>
+<p>Next, the user must create an R project. The user then selects the
+drop down menu on the top right corner of R Studio and selects the
+option “New Project”. If the user does not have any current projects
+open, the drop down title will be “Project: (none)”. Otherwise, the drop
+down menu will show the name of the current project.</p>
+<p>Next, select the option to create a project from an existing
+directory and select the main folder that was created for the
+project.</p>
+<p>By creating an R project, R is better equipped to be able to find
+files regardless of the exact file pathway for each individual computer,
+allowing for easier sharing abilities between individuals.</p>
+</div>
+<div id="front-end-script" class="section level3">
+<h3>Front End Script</h3>
+<p>This next portion of the vignette explains the different aspects of
+the front end script.</p>
+<div id="step-1-set-up-file" class="section level5">
+<h5>Step 1: Set up File</h5>
+<p>For this pipeline, the following packages are required:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(chemoprotR)</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">library</span>(here)</span></code></pre></div>
+<pre><code>## here() starts at /Users/leac176/gitrepos/chemoproteomicsR</code></pre>
+<p>The following line of code helps R locate other files within the R
+Project and directory.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>here<span class="sc">::</span><span class="fu">i_am</span>(<span class="st">&quot;Code/front_end_script_labeled.R&quot;</span>)</span></code></pre></div>
+<pre><code>## here() starts at /Users/leac176/gitrepos/chemoproteomicsR/vignettes</code></pre>
+</div>
+<div id="step-2-specify-parameters" class="section level5">
+<h5>Step 2: Specify Parameters</h5>
+<p>Within the labeled TMT framework, there are around nine different
+sheets in the excel file. Of those sheets, the following five are
+currently used in statistical analyses:</p>
+<ol style="list-style-type: decimal">
+<li>Mage</li>
+<li>T_Reporter_Ions_Typed</li>
+<li>T_Data_Package_Analysis_Jobs</li>
+<li>Sheet1 (Protein Collection Information)</li>
+<li>f_data</li>
+</ol>
+<p>Within each of these different sheets, there are varying columns that
+need to be specified. If these values remain consistent between
+different analyses, these default values can remain in place. However,
+if they vary from experiment to experiment, they will need to be updated
+accordingly.</p>
+<p>For <code>chemoprotR</code> functions to run smoothly, the user
+specifies the name of the excel file, the msgf threshold value to be
+used for filtering, the names of the different tabs in the spreadsheet,
+a select number of column names from a variety of those tabs, as well as
+some normalization information.</p>
+<p>For the purpose of this vignette, data is loaded using example data
+from the package <code>chemoprotR</code>. However, we include the line
+of code that will be used typically for the front end script.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co"># data is the name of xlsx file that we are loading in</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>data <span class="ot">=</span> <span class="st">&quot;TMT_Practice_Dataset.xlsx&quot;</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># enter the msgf number that is important for this analysis</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>msgf <span class="ot">=</span> <span class="fl">2.7113E-8</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co"># add in the sheet names</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>tab_names <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">talias =</span> <span class="st">&quot;T_alias&quot;</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>                          <span class="at">analysis_jobs =</span> <span class="st">&quot;T_Data_Package_Analysis_Jobs&quot;</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>                          <span class="at">reporter_ions =</span> <span class="st">&quot;T_Reporter_Ions_Typed&quot;</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>                          <span class="at">mage =</span> <span class="st">&quot;Mage&quot;</span>,</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>                          <span class="at">protein_collection =</span> <span class="st">&quot;Protein_collection_data&quot;</span>,</span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>                          <span class="at">fdata =</span> <span class="st">&quot;f_data&quot;</span>)</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a><span class="co"># add in the column name information</span></span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a>mage_cols <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">job_name =</span> <span class="st">&quot;Job&quot;</span>,</span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a>                        <span class="at">scan_name =</span> <span class="st">&quot;Scan&quot;</span>,</span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a>                        <span class="at">peptide_name =</span> <span class="st">&quot;Peptide&quot;</span>,</span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a>                        <span class="at">protein_name =</span> <span class="st">&quot;Protein&quot;</span>,</span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a>                        <span class="at">qvalue_name =</span> <span class="st">&quot;QValue&quot;</span>,</span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a>                        <span class="at">msgf_specprob_name =</span> <span class="st">&quot;MSGF_SpecProb&quot;</span>)</span>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a></span>
+<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a>analysis_cols <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">job_name =</span> <span class="st">&quot;Job&quot;</span>,</span>
+<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a>                            <span class="at">dataset_id_name =</span> <span class="st">&quot;Dataset_ID&quot;</span>)</span>
+<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a></span>
+<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a>reporter_cols <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">dataset_id_name =</span> <span class="st">&quot;Dataset&quot;</span>,</span>
+<span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a>                            <span class="at">scan_name =</span> <span class="st">&quot;ScanNumber&quot;</span>)</span>
+<span id="cb6-25"><a href="#cb6-25" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" tabindex="-1"></a>fdata_cols <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">sampleID_name =</span> <span class="st">&quot;SampleID&quot;</span>,</span>
+<span id="cb6-27"><a href="#cb6-27" tabindex="-1"></a>                    <span class="at">group_name =</span> <span class="st">&quot;Grouping&quot;</span>,</span>
+<span id="cb6-28"><a href="#cb6-28" tabindex="-1"></a>                    <span class="at">job_name =</span> <span class="st">&quot;Job&quot;</span>,</span>
+<span id="cb6-29"><a href="#cb6-29" tabindex="-1"></a>                    <span class="at">replicate_name =</span> <span class="st">&quot;Replicate&quot;</span>,</span>
+<span id="cb6-30"><a href="#cb6-30" tabindex="-1"></a>                    <span class="at">plex_name =</span> <span class="st">&quot;Plex&quot;</span>,</span>
+<span id="cb6-31"><a href="#cb6-31" tabindex="-1"></a>                    <span class="at">ionization_name =</span> <span class="st">&quot;Ionization&quot;</span>)</span>
+<span id="cb6-32"><a href="#cb6-32" tabindex="-1"></a></span>
+<span id="cb6-33"><a href="#cb6-33" tabindex="-1"></a>protein_collection_cols <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">proteinName_name =</span> <span class="st">&quot;protein_name&quot;</span>)</span>
+<span id="cb6-34"><a href="#cb6-34" tabindex="-1"></a></span>
+<span id="cb6-35"><a href="#cb6-35" tabindex="-1"></a>normalization_info <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">reference_name =</span> <span class="st">&quot;Reference&quot;</span>,</span>
+<span id="cb6-36"><a href="#cb6-36" tabindex="-1"></a>                                 <span class="at">norm_fn =</span> <span class="st">&quot;mean&quot;</span>,</span>
+<span id="cb6-37"><a href="#cb6-37" tabindex="-1"></a>                                 <span class="at">backtransform =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+</div>
+<div id="step-3-load-in-data" class="section level5">
+<h5>Step 3: Load in Data</h5>
+<p>Once those values have been adjusted accordingly based on the
+experiment, the rest of the code should not have to be altered. In this
+code chunk, the user officially loads the data into R as a list and
+renames the elements of the list to be the tabnames from Excel.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># put xlsx object into more R friendly formatting</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>mydata <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(<span class="fu">here</span>(<span class="st">&quot;Data&quot;</span>,data))</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>sheet_names <span class="ot">&lt;-</span> <span class="fu">excel_sheets</span>(<span class="fu">here</span>(<span class="st">&quot;Data&quot;</span>,data))</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co"># this creates a list with each element being a sheet by its corresponding name</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>dat_list <span class="ot">&lt;-</span> <span class="fu">lapply</span>(sheet_names, <span class="cf">function</span>(x) {          <span class="co"># Read all sheets to list</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  <span class="fu">as.data.frame</span>(<span class="fu">read_excel</span>(<span class="fu">here</span>(<span class="st">&quot;Data&quot;</span>,data),<span class="at">sheet =</span> x))})</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="fu">names</span>(dat_list) <span class="ot">&lt;-</span> sheet_names</span></code></pre></div>
+</div>
+<div id="step-4-clean-the-data" class="section level5">
+<h5>Step 4: Clean the Data</h5>
+<p>Within this code chunk, the user cleans data to create an object that
+is compatible with <code>pmartR</code>. The package <code>pmartR</code>
+has many built in capabilities from quality control filtering and
+normalization to data visualizations and statistical analyses. By
+manipulating the data to fit an S3 object compatible with
+<code>pmartR</code>, <code>chemoprotR</code> is able to utilize those
+capabilities.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># step 4: run cleaning chemoprot function ######################################</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co"># create pmartObj</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>htp_pmart_cleaned <span class="ot">&lt;-</span> <span class="fu">clean_chemoprot_labeled</span>(dat_list,tab_names,mage_cols,analysis_cols,</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>                                        reporter_cols,fdata_cols,protein_collection_cols)</span></code></pre></div>
+<pre><code>## 65830 instances of 0 have been replaced with NA</code></pre>
+<pre><code>## 58201 instances of 0 have been replaced with NA</code></pre>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="co"># save the results and msgf/job information</span></span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>labeled_information <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">pmartObj =</span> htp_pmart_cleaned,<span class="at">msgf =</span> msgf,<span class="at">fdata_info =</span> fdata_cols,</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>                            <span class="at">analysis_info =</span> analysis_cols,<span class="at">mage_info =</span> mage_cols,<span class="at">norm_info =</span> normalization_info,</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>                            <span class="at">protein_info =</span> protein_collection_cols)</span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">saveRDS</span>(labeled_information,<span class="fu">paste0</span>(<span class="fu">here</span>(<span class="st">&quot;Data&quot;</span>,data),<span class="st">&quot;labeled_information.RDS&quot;</span>))</span></code></pre></div>
+</div>
+<div id="step-5-render-report" class="section level5">
+<h5>Step 5: Render Report</h5>
+<p>The last step is the render the report. For labeled data, the data is
+analyzed based on job number, so if there are more than one job being
+ran, this code runs iteratively to render as many reports as there are
+jobs in the experiment.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="co"># run this for loop to generate reports for each job</span></span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(htp_pmart_cleaned)){</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>  rmarkdown<span class="sc">::</span><span class="fu">render</span>(<span class="at">input =</span> <span class="fu">here</span>(<span class="st">&quot;Code&quot;</span>,<span class="st">&quot;report_labeled.Rmd&quot;</span>),</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>                    <span class="at">output_file =</span> <span class="fu">paste0</span>(<span class="st">&quot;report_labeled_job_&quot;</span>,<span class="fu">unique</span>(htp_pmart_cleaned[[i]]<span class="sc">$</span>e_meta<span class="sc">$</span>Job),<span class="st">&quot;.html&quot;</span>))</span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>}</span></code></pre></div>
+</div>
+</div>
+<div id="report" class="section level3">
+<h3>Report</h3>
+<p>The reports that are generated are rendered automatically and the
+user does not need to alter the Rmarkdown file pertaining to the report.
+The file is broken down into the following sections:</p>
+<ul>
+<li>Software Used</li>
+<li>Isobaric Normalization
+<ul>
+<li>The data is normalized with regards to the reference plate</li>
+</ul></li>
+<li>Potential Outliers
+<ul>
+<li>Potential outliers are identified and plotted. If the user specifies
+any outliers to be removed in the front-end script, those samples are
+removed here</li>
+</ul></li>
+<li>Filters
+<ul>
+<li>Number of missing values per sample are plotted</li>
+<li>Remove molecules with MSGF spectral probability greater than the
+specified value</li>
+<li>Sum up peptide redundancies</li>
+</ul></li>
+<li>Normalization
+<ul>
+<li>Data is normalized using either median or mean centering. The user
+can specify whether the data should be backtransformed after undergoing
+normalization or not.</li>
+</ul></li>
+<li>Protein Quantitation
+<ul>
+<li>Rollup method</li>
+</ul></li>
+<li>Reverse Hits/Contaminants
+<ul>
+<li>Proteins associated with reverse hits or contaminants are removed
+from the data.</li>
+</ul></li>
+<li>Statistical Results
+<ul>
+<li>ANOVA and g-test analyses are conducted on the data</li>
+<li>Bar plots and volcano plots to visualize the results</li>
+<li>Table containing fold change information, count data, and
+significance levels for each molecule is created</li>
+<li>Table containing the log2 normalized abundance values are also
+generated</li>
+</ul></li>
+<li>References</li>
+</ul>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,195 @@
+---
+title: "HTP Report"
+author: "Damon Leach, Kelly Stratton, Lisa Bramer"
+date: "`r Sys.Date()`"
+output: html_document
+bibliography: analysis_ref.bib
+---
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F,fig.width = 10)
+
+knitr::knit_hooks$set(inline = function(x) {
+  prettyNum(x, big.mark = ",")
+})
+
+library(pmartR)
+```
+
+## Software Used
+
+R 4.2.1 [@R] was used for all computations. The following packages were used:
+
+| Package         | Use                                           | Reference    |
+|-----------------|-----------------------------------------------|--------------|
+| dplyr           | General data processing                       | @dplyr       |
+| ggplot2         | Creating figures                              | @ggplot      |
+| pmartR          | Processing/normalizing/analyzing protein data | @pmartr2      |
+
+```{r}
+# find the data directory
+datadir = paste0(here::here(),"/Data")
+# find the results directory
+resultsdir = paste0(here::here(),"/Results")
+# load in the data
+lab_info <- readRDS(paste0(datadir,"/unlabeled_information.RDS"))
+# pull out the pmart object
+htp_pmart <- lab_info$pmartObj
+# pull out the msgf value
+msgf <- lab_info$msgf
+# find the fdata colum information
+fdat <- lab_info$fdata_info
+# find mage information
+mage <- lab_info$mage_info
+# find norm information
+norm_inf <- lab_info$norm_info
+# add in protein data
+prot_collect <- lab_info$protein_info
+```
+
+As the data is unlabeled, there is no need to undergo isobaric normalization. Prior to any other normalization or filtering, there were `r nrow(htp_pmart$e_data)` peptides in the data and `r length(unique(htp_pmart$e_meta[[mage$peptide_name]]))` unique peptides. There were also `r attr(htp_pmart,"data_info")$num_miss_obs` missing observations accounting for `r round(attr(htp_pmart,"data_info")$prop_missing *100,2)`% missingness.
+
+## Filters
+
+```{r}
+# log2 transform the data
+htp_pmart <- edata_transform(htp_pmart,"log2")
+
+# obtain pmart object cnames
+edat_cname = get_edata_cname(htp_pmart)
+fdat_cname = get_fdata_cname(htp_pmart)
+emet_cname = get_emeta_cname(htp_pmart)
+
+# within that job remove the molecules that are not below a certain msgf threshold
+emetaJobMSGF <- htp_pmart$e_meta[htp_pmart$e_meta[[mage$msgf_specprob_name]] <= msgf,]
+keepPep <- emetaJobMSGF[[edat_cname]]
+cfilt <- custom_filter(htp_pmart,e_data_keep = keepPep)
+htp_msgf <- applyFilt(cfilt,htp_pmart)
+
+# sum up redundancy
+# make dataset with just peptide and unique peptide
+pep_uniquepep <- htp_msgf$e_meta %>%
+  dplyr::select(!!as.symbol(edat_cname),!!as.symbol(mage$peptide_name))
+edatUnique <- htp_msgf$e_data %>%
+  dplyr::left_join(pep_uniquepep) %>%
+  dplyr::group_by(!!as.symbol(mage$peptide_name)) %>%
+  dplyr::summarise(dplyr::across(dplyr::where(is.numeric), sum,na.rm=T))
+
+# add on protein collection info back in
+add_on_emeta <- htp_msgf$e_meta[,c(which(colnames(htp_msgf$e_meta) == mage$protein_name),which(colnames(htp_msgf$e_meta) %in% prot_collect))] %>%
+  dplyr::distinct()
+
+# create emeta
+emetUnique <- htp_msgf$e_meta %>%
+  dplyr::group_by(!!as.symbol(mage$peptide_name),!!as.symbol(mage$protein_name)) %>%
+  dplyr::count() %>%
+  dplyr::rename(pep_count = n) %>%
+  dplyr::left_join(add_on_emeta, by = mage$protein_name)
+
+# create pmart object with no redundancy
+htp_no_redundancy <- as.pepData(e_data = edatUnique, edata_cname = mage$peptide_name,
+                                f_data = htp_msgf$f_data, fdata_cname = fdat_cname,
+                                e_meta = emetUnique, emeta_cname = mage$protein_name)
+# attr(htp_no_redundancy,"data_info")$data_scale <- "abundance"
+
+# run group designation on the data
+htp_no_redundancy <- group_designation(htp_no_redundancy,main_effects = fdat$group_name)
+```
+
+Before analyses could be ran, the data was filtered. First, the data was subset such that only molecules with a msgf spectral probability value less than `r msgf` were included. After removing peptides with msgf spectral probability values that were too high, there were `r nrow(htp_msgf$e_data)` molecules in the data. Peptide redundancies were summed such that we each row corresponded to a single peptide. After this was conducted, `r nrow(htp_no_redundancy)` unique peptides remaining.
+
+## Normalization
+
+```{r, out.width = "50%"}
+htp_log <- edata_transform(htp_no_redundancy,"log2")
+# now we can normalize the data (do not backtransform quite yet)
+htp_normalized <- htp_normalize(pmart_obj = htp_log, norm_function = "mean", backtransform_val = TRUE)
+
+# do log2 after summing up
+```
+
+Data was then normalized using `r norm_inf$norm_fn` centering. `r if(norm_inf$backtransform){"A group specific backtransform was applied on the data"}` `r if(!norm_inf$backtransform){"A group specific backtransform was not applied on the data"}` . **Figure 1** shows the data after undergoing `r norm_inf$norm_fn` centering normalization `r if(norm_inf$backtransform){"with a group-specific backtransform"}` .
+
+```{r}
+# plot the data
+plot(htp_log)
+plot(htp_normalized)
+```
+
+**Figure 1: Peptide-level data before (left) and after (right) undergoing normalization**
+
+## Protein Quantitation
+
+```{r}
+htp_protein <- protein_quant(htp_normalized,method = "rollup")
+```
+
+Protein quantitation on the data using the "rollup" method placing the data on the protein-level rather than peptide-level. After undergoing protein quantitation, there were `r nrow(htp_protein$e_data)` unique proteins in the data. There were `r attr(htp_protein,"data_info")$num_miss_obs` missing observations accounting for `r round(attr(htp_protein,"data_info")$prop_missing*100,2)`% missingness.
+
+## Reverse Hits/Contaminants
+
+We then remove reverse hits and contaminants that may still be present in the dataset.
+
+```{r}
+# create custom filter to remove the contaminant proteins
+contamProtein <- htp_protein$e_meta$Protein[grep("Contam",htp_protein$e_meta$Protein)]
+cfilterContam <- custom_filter(omicsData = htp_protein, e_meta_remove = contamProtein)
+htp_protein <- applyFilt(cfilterContam,htp_protein)
+
+xxxProtein <- htp_protein$e_meta$Protein[grep("XXX",htp_protein$e_meta$Protein)]
+cfilterxxx <- custom_filter(omicsData = htp_protein, e_meta_remove = xxxProtein)
+htp_protein <- applyFilt(cfilterxxx,htp_protein)
+```
+
+Reverse hits and contaminants that remained in the data were removed. After removing those molecules, there were `r nrow(htp_protein$e_data)` unique proteins in the data. There were `r attr(htp_protein,"data_info")$num_miss_obs` missing observations accounting for `r round(attr(htp_protein,"data_info")$prop_missing*100,2)`% missingness. **Figure 2** shows the normalized protein-level data after quantitation and removal of reverse hits and contaminants.
+
+```{r}
+plot(htp_protein)
+```
+
+**Figure 2: Protein-level data after undergoing quantitation and removal of reverse hits and contaminants**
+
+## Results
+
+We can look at the number of significant fold changes between all comparisons. **Figure 3** demonstrates the number of significant fold changes by each pairwise comparison in both a bar plot and a volcano plot.
+
+```{r}
+# in fdata spreadsheet, add a column that specifies comparisons to parse (and also direction)
+statRes <- imd_anova(htp_protein,test_method = "anova")
+
+
+# add in protein collection information
+statRes <- statRes %>%
+  dplyr::left_join(add_on_emeta, by = mage$protein_name)
+# save the results
+write.csv(statRes, paste0(file.path(resultsdir,"results_unlabeled.csv")),
+          row.names = FALSE)
+# join everything into emeta
+```
+
+```{r,out.width = "50%"}
+plot(statRes)
+plot(statRes,plot_type = "volcano")
+```
+
+**Figure 3: Significant fold changes by both bar plot (left) and volcano plot (right)**
+
+Statistical results for each protein are given in the file `r paste0("'results_unlabeled.csv'")` . Within this csv, there are the following columns:
+
+| Column Name             | Description                                |
+|-------------------------|--------------------------------------------|
+| Protein                 | Protein identifier                         |
+| Count\_X                | Number of counts for Group X               |
+| Mean\_X                 | Mean value for Group X                     |
+| Fold\_change\_X\_vs\_Y. | log2 fold-change of viral strain X/Y       |
+| P\_value\_A\_X\_vs\_Y   | Adjusted p-value for comparison of X and Y |
+| Flag\_A\_X\_vs\_Y       | Flag for comparison of X and Y condition   |
+| Protein\_Collection\_ID | Protein collection ID                      |
+| Protein\_Collection     | Protein collection                         |
+| Description             | Description                                |
+| Reference\_ID           | Reference ID                               |
+| Residue\_Count          | Residue count                              |
+| Monotopic\_Mass         | Monotopic mass                             |
+| Protein\_ID             | Protein ID                                 |
+
+## References

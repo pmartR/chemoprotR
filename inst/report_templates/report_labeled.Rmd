@@ -1,0 +1,384 @@
+---
+title: "Labeled HTP Chemoproteomics Report"
+author: "Damon Leach, Kelly Stratton, Lisa Bramer"
+date: "`r Sys.Date()`"
+output: html_document
+bibliography: analysis_ref.bib
+---
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F,fig.width = 10)
+
+knitr::knit_hooks$set(inline = function(x) {
+  prettyNum(x, big.mark = ",")
+})
+
+# load in necessary libraries
+library(pmartR)
+library(chemoprotR)
+library(here)
+```
+
+## Software Used
+
+R 4.2.1 [@R] was used for all computations. The following packages were used:
+
+| Package         | Use                                           | Reference    |
+|-----------------|-----------------------------------------------|--------------|
+| dplyr           | General data processing                       | @dplyr       |
+| ggplot2         | Creating figures                              | @ggplot      |
+| pmartR          | Processing/normalizing/analyzing protein data | @pmartr2      |
+
+```{r}
+# let R know where you are
+here::i_am("Code/report_labeled.Rmd")
+
+# load in the data
+lab_info <- readRDS(here("Data","labeled_information.RDS"))
+# pull out the pmart object
+htp_pmart <- lab_info$pmartObj[[i]]
+# pull out the msgf value
+msgf <- lab_info$msgf
+# find the fdata colum information
+fdat <- lab_info$fdata_info
+# find analysis column information
+analysis <- lab_info$analysis_info
+# find mage information
+mage <- lab_info$mage_info
+# find norm information
+norm_inf <- lab_info$norm_info
+# add in rollup information
+roll_info <- lab_info$rollup_info
+# add in protein data
+prot_collect <- lab_info$protein_info
+# find name of data sheet
+data_name <- lab_info$data_name
+# load in outlier names
+outlier_names <- lab_info$outlier_info
+
+# obtain pmart object cnames
+edat_cname = get_edata_cname(htp_pmart)
+fdat_cname = get_fdata_cname(htp_pmart)
+emet_cname = get_emeta_cname(htp_pmart)
+
+# run_isobaric
+run_iso <- lab_info$run_isobaric
+
+# grouping name
+grouping_name <- lab_info$fdata_info$group_name
+```
+
+## Isobaric Normalization
+
+```{r}
+# remove the NA columns
+if("NA" %in% htp_pmart$f_data$Grouping){
+  # find which column has the NA Grouping Name
+  badSamplesNum = which(htp_pmart$f_data$Grouping == "NA")
+  badSamplesName = htp_pmart$f_data$SampleID[badSamplesNum]
+  # apply custom filter to remove those NA samples
+  cfilt <- custom_filter(htp_pmart,f_data_remove = badSamplesName)
+  htp_pmart <- applyFilt(cfilt,htp_pmart)
+}
+```
+
+`r if(run_iso == "Yes"){paste0("Since the data are labeled, isobaric normalization is performed as shown in **Figure 1**, where the plot on the left shows the data prior to isobaric normalization and the plot on the right shows the data undergoing isobaric normalization. There are ", length(unique(htp_pmart$e_meta[[mage$peptide_name]])), " unique peptides mapping to ", length(unique(htp_pmart$e_meta[[mage$protein_name]])), " proteins. There were ", attr(htp_pmart,"data_info")$num_miss_obs, " missing observations (", round(attr(htp_pmart,"data_info")$prop_missing *100,2), "%).")}`
+
+`r if(run_iso == "No"){paste0("This labeled dataset did not undergo isobaric normalization as all analyses are conducted within the same plex. **Figure 1** shows prior to data processing on the left and the plot on the right shows the data colored by grouping. There are ", length(unique(htp_pmart$e_meta[[mage$peptide_name]])), " unique peptides mapping to ", length(unique(htp_pmart$e_meta[[mage$protein_name]])), " proteins. There were ", attr(htp_pmart,"data_info")$num_miss_obs, " missing observations (", round(attr(htp_pmart,"data_info")$prop_missing *100,2), "%).")}`
+
+
+```{r}
+# log transform the data
+htp_pmart <- edata_transform(htp_pmart,"log2")
+
+if(run_iso == "Yes"){
+  htp_isobaric <- normalize_isobaric(htp_pmart,exp_cname = fdat$plex_name,apply_norm = T,
+                                   channel_cname = fdat$group_name,refpool_channel = norm_inf$reference_name)
+} else {
+  # remove reference sample
+  ref_sample = htp_pmart$f_data[fdat$sampleID_name][htp_pmart$f_data[fdat$group_name] == norm_inf$reference_name]
+  cfilt <- custom_filter(htp_pmart, f_data_remove = ref_sample)
+  htp_isobaric <- applyFilt(cfilt, htp_pmart)
+  # pretend we ran isobaric normalization so code runs even without the normalization
+  attributes(htp_isobaric)$isobaric_info$norm_info$is_normalized = TRUE
+  
+}
+# run isobaric normalization
+
+# obtain pmart object cnames
+edat_cname = get_edata_cname(htp_isobaric)
+fdat_cname = get_fdata_cname(htp_isobaric)
+emet_cname = get_emeta_cname(htp_isobaric)
+```
+
+```{r, out.width = "50%"}
+plot(htp_pmart, order_by = grouping_name)
+#plot(htp_isobaric, color_by = grouping_name)
+
+if(run_iso == "Yes"){
+  plot(htp_isobaric, color_by = grouping_name,order_by = grouping_name)
+} else {
+  plot(htp_isobaric, color_by = grouping_name,order_by = grouping_name) + 
+    ggplot2::labs(title = "Boxplots of Un-Normalized Isobaric Peptide Data")
+}
+```
+
+**Figure 1: Peptide-level data before and after undergoing isobaric normalization**
+
+## Filters
+
+```{r, message = FALSE}
+# within that job remove the molecules that are not below a certain msgf threshold
+emetaJobMSGF <- htp_isobaric$e_meta[htp_isobaric$e_meta[[mage$msgf_specprob_name]] <= msgf,]
+keepPep <- emetaJobMSGF[[edat_cname]]
+if(length(keepPep) != nrow(htp_isobaric$e_data)){
+  cfilt <- custom_filter(htp_isobaric,e_data_keep = keepPep)
+  htp_msgf <- applyFilt(cfilt,htp_isobaric)
+} else {
+  htp_msgf <- htp_isobaric
+}
+
+# sum up redundancies
+htp_no_redundancy <- redundancy_sum(pmartObj = htp_msgf,protein_collect_names = prot_collect,mage_names = mage,labeled = TRUE)
+
+# run group designation on the data
+htp_no_redundancy <- group_designation(htp_no_redundancy,main_effects = fdat$group_name)
+```
+
+Data were filtered such that only peptides with a MSGF spectral probability value less than `r msgf` were retained. After removing peptides with MSGF spectral probability values exceeding this threshold, `r nrow(htp_msgf$e_data)` peptides remained in the data. Peptide redundancies were summed such that each row corresponded to a unique peptide.
+
+**Figure 2** shows the number of missing values per sample colored by grouping. After summing up peptide redundancies, there are `r attr(htp_no_redundancy,"data_info")$num_miss_obs` missing observations (`r round(attr(htp_no_redundancy,"data_info")$prop_missing *100,2)`%).
+
+```{r}
+# find missing values
+missObj = pmartR::missingval_result(htp_no_redundancy)
+plot(missObj,htp_no_redundancy,color_by = grouping_name)
+```
+
+**Figure 2: Barplot of missing values for each sample colored by Group**
+
+## Potential Outliers
+
+```{r rmd_filter positive}
+# outlier search
+htp_no_redundancy <- group_designation(htp_no_redundancy,main_effects = fdat$group_name)
+rmd_res = rmd_filter(htp_no_redundancy, metrics = c("Correlation","Skewness","MAD","Proportion_Missing"),ignore_singleton_groups = FALSE)
+out_id = summary(rmd_res, pvalue_threshold = 0.0001)$filt
+
+# update outlier_names so it only corresponds to the correct job/document
+outlier_names <- outlier_names[outlier_names %in% htp_no_redundancy$f_data[[fdat_cname]]]
+```
+
+We ran a robust Mahalanobis distance to look for potential outliers [@rmd]. We used the metrics of correlation to other samples in the same protocol, skewness, MAD of the molecule abundance profile, and the proportion of missing values. The null hypothesis is that a sample is not an outlier. We used a threshold of a p-value less than 0.0001. **`r if("NULL" %in% out_id){"Figure 3"} else{"Figure 3a"}`** shows the log2 distance score, where points falling above the line correspond to samples with a p-value < 0.0001.
+
+```{r}
+knitr::knit_hooks$set(inline = function(x) {
+  prettyNum(x)
+})
+```
+
+`r if(!"NULL" %in% out_id){"We then looked at the potential outliers and holistically decided whether removal was warranted. **Figure 3b** shows the values for each of the 4 different metrics used to calculate the robust Mahalanobis distance for potential outliers."}` `r if(!"NULL" %in% out_id & length(outlier_names) == 0){"After some careful consideration, it was determined that all samples should remain in the data."}` `r if(!"NULL" %in% out_id & length(outlier_names) == 1){"After some careful consideration, it was determined the following sample should be removed from the data: "}` `r if(!"NULL" %in% out_id & length(outlier_names) == 1){paste0(outlier_names,".")}` `r if(!"NULL" %in% out_id & length(outlier_names) > 1){"After some careful consideration, it was determined the following samples should be removed from the data: "}` `r if(!"NULL" %in% out_id & length(outlier_names) > 1){paste0(paste(outlier_names, collapse = ", "),".")}`
+
+```{r}
+knitr::knit_hooks$set(inline = function(x) {
+  prettyNum(x, big.mark = ",")
+})
+```
+
+```{r}
+# plot the full plot
+plot(rmd_res, pvalue_threshold = 0.0001)
+```
+
+**`r if("NULL" %in% out_id){"Figure 3: Sample Outliers Results"}`**
+
+**`r if(!"NULL" %in% out_id){"Figure 3a: Sample Outliers Results"}`**
+
+```{r}
+# plot specific outliers
+if(!"NULL" %in% out_id){
+  plot(rmd_res,sampleID = out_id)
+}
+```
+
+**`r if(!"NULL" %in% out_id){"Figure 3b: RMD Distance values for potential outliers"}`**
+
+```{r}
+# remove the specified outliers
+if(length(outlier_names) > 0){
+  cfilt <- custom_filter(htp_no_redundancy,f_data_remove = outlier_names)
+  htp_no_redundancy <- applyFilt(cfilt,htp_no_redundancy)
+}
+```
+
+## Normalization
+
+```{r, message = FALSE}
+htp_normalized_bt <- htp_normalize(pmartObj = htp_no_redundancy,norm_function = norm_inf$norm_fn, backtransform_val = norm_inf$backtransform)
+```
+
+Data were normalized using `r norm_inf$norm_fn` centering. `r if(norm_inf$backtransform){"A group specific backtransform was applied to the data"}` `r if(!norm_inf$backtransform){"A group specific backtransform was not applied to the data"}`. **Figure 4** shows the data after normalization.
+
+```{r}
+plot(htp_normalized_bt, color_by = grouping_name)
+```
+
+**Figure 4: Peptide-level data after undergoing normalization**
+
+## Protein Quantitation
+
+```{r}
+if(roll_info$rollup_method %in% c("rollup","rrollup")){
+  htp_protein <- protein_quant(htp_normalized_bt,method = roll_info$rollup_method,
+                               combine_fn = roll_info$centering_fn)
+} else {
+  htp_protein <- sum_pep_quant(htp_normalized_bt,top3 = F)
+}
+```
+
+Protein quantitation was performed using the `r roll_info$rollup_method` method, resulting in a dataset with `r nrow(htp_protein$e_data)` unique proteins and `r attr(htp_protein,"data_info")$num_miss_obs` missing observations (`r round(attr(htp_protein,"data_info")$prop_missing*100,2)`%).
+
+## Reverse Hits and Contaminants
+
+```{r}
+# create custom filter to remove the contaminant proteins
+contamProtein <- htp_protein$e_meta[[mage$protein_name]][grep("Contam",htp_protein$e_meta[[mage$protein_name]])]
+cfilterContam <- custom_filter(omicsData = htp_protein, e_meta_remove = contamProtein)
+htp_protein <- applyFilt(cfilterContam,htp_protein)
+
+xxxProtein <- htp_protein$e_meta[[mage$protein_name]][grep("XXX",htp_protein$e_meta[[mage$protein_name]])]
+cfilterxxx <- custom_filter(omicsData = htp_protein, e_meta_remove = xxxProtein)
+htp_protein <- applyFilt(cfilterxxx,htp_protein)
+```
+
+Reverse hits and contaminants were then removed resulting in a dataset with `r nrow(htp_protein$e_data)` unique proteins and `r attr(htp_protein,"data_info")$num_miss_obs` missing observations (`r round(attr(htp_protein,"data_info")$prop_missing*100,2)`%). **Figure 5** shows the resulting normalized protein-level data.
+
+```{r}
+plot(htp_protein,color_by = grouping_name, order_by = grouping_name)
+```
+
+**Figure 5: Protein-level data after undergoing quantitation and removal of reverse hits and contaminants**
+
+## Statistical Results
+
+Analysis of variance (ANOVA) was used to compare each pair of sample groups when sufficient observations (at least 2 in each group being compared) were present for this test. **Figure 6** shows the number of significant differences (unadjusted p-value < 0.05) between each pair of groups, along with a volcano plot.
+
+```{r}
+# htp_protein2 <- htp_protein
+# # run imdanova_filter on the protein leveld data
+# myfilt <- imdanova_filter(htp_protein2)
+# htp_protein2 <- applyFilt(myfilt, htp_protein2,min_nonmiss_anova = 2)
+
+# run statRes objects
+statResObj <- imd_anova(htp_protein, test_method = "combined", equal_var = FALSE)
+
+# add back in emeta information for results
+# load emeta data
+add_on_emeta <- htp_normalized_bt$e_meta %>%
+  dplyr::select(-dplyr::all_of(mage_cols$job_name)) %>%
+  dplyr::distinct()
+
+```
+
+```{r}
+# this code updates the statResObj object created in pmartR
+# such that if a value contains only 1 lipid
+# the associated p-value and fold change become NA
+# and the flag becomes 0
+num_count_var = which(stringr::str_detect(colnames(statResObj),"Count_"))
+for(i in 1:nrow(statResObj)){
+  for(j in 1:length(num_count_var)){
+      if(statResObj[i,num_count_var[j]] == 1){
+        # find the name of the samples that are bad
+        bad_sample = stringr::str_remove(colnames(statResObj)[num_count_var[j]],"Count_")
+
+        # fold change becomes NaN
+        statResObj[i,stringr::str_detect(colnames(statResObj),"Fold_change") & stringr::str_detect(colnames(statResObj),bad_sample)] <- NaN
+        # pvalue becomes NaN
+        statResObj[i,stringr::str_detect(colnames(statResObj),"P_value") & stringr::str_detect(colnames(statResObj),bad_sample)] <- NaN
+        # flag becomes NaN
+        statResObj[i,stringr::str_detect(colnames(statResObj),"Flag_") & stringr::str_detect(colnames(statResObj),bad_sample)] <- 0
+      }
+  }
+}
+
+# this portion of the code then updates
+# the attribute "number_significant"
+# for the statResObj object to assist with
+# the plotting commands of statResObj objects
+anova_flags <- statResObj[, grepl("^Flag_A", names(statResObj))] %>%
+  data.matrix()
+up_a <- apply(anova_flags, 2, function(x){length(which(x == 1))})
+down_a <- apply(anova_flags, 2, function(x){length(which(x == -1))})
+  comparisons <- attr(statResObj, "comparisons")
+
+attr(statResObj,"number_significant") <- data.frame(
+    Comparison = comparisons,
+    Up_total = up_a,
+    Down_total = down_a,
+    Up_anova = up_a,
+    Down_anova = down_a,
+    Up_gtest = 0,
+    Down_gtest = 0,
+    row.names = NULL
+)
+```
+
+```{r,out.width = "50%"}
+plot(statResObj)
+plot(statResObj, plot_type = "volcano")
+```
+
+**Figure 6: Number of proteins that had significant differences between groups (left) and the corresponding volcano plot (right)**
+
+```{r}
+# add in protein collection information
+emeta_info <- htp_protein$e_meta %>%
+  dplyr::select(mage$protein_name,n_peps_used)
+
+statRes_df <- statResObj %>%
+  data.frame() %>%
+  dplyr::left_join(add_on_emeta, by = mage$protein_name) %>%
+  dplyr::left_join(emeta_info, by = mage$protein_name) %>%
+  dplyr::rename(Number_Peptides_Used = n_peps_used)
+# change NaN to NA for excel purpose
+statRes_df[sapply(statRes_df, is.nan)] <- "NA"
+# add back in NA values as string for writexl purposes
+htp_protein$e_data[is.na(htp_protein$e_data)] <- "NA"
+
+# save the results
+# remove the xlsx from name if there
+data_name = stringr::str_remove(data_name,".xlsx")
+list_of_datasets <- list("results" = statRes_df,
+                         # we also want log2 normalized data
+                         "log2_normalized" = htp_protein$e_data)
+writexl::write_xlsx(list_of_datasets, 
+           path = here("Results",paste0("results_",data_name,"_job_",htp_pmart$e_meta$Job[1],".xlsx")))
+
+knitr::knit_hooks$restore()
+```
+
+Statistical results are provided in the file "`r paste0("results_",data_name,"_job_",htp_pmart$e_meta$Job[1],".xlsx")`". This file contains the two sheets. The first sheet contains the statistical results with following columns:
+
+| Column Name             | Description                                |
+|-------------------------|--------------------------------------------|
+| Protein                 | Protein identifier                         |
+| Count\_X                | Number of counts for Group X               |
+| Mean\_X                 | Mean value for Group X                     |
+| Fold\_change\_X\_vs\_Y  | log2 fold-change of comparison X/Y         |
+| P\_value\_A\_X\_vs\_Y   | Adjusted p-value for anova comparison of X and Y |
+| P\_value\_G\_X\_vs\_Y   | Adjusted p-value for g-test comparison of X and Y |
+| Flag\_A\_X\_vs\_Y       | Flag for anova comparison of X and Y condition   |
+| Flag\_G\_X\_vs\_Y       | Flag for g-test comparison of X and Y condition   |
+| Protein\_Collection\_ID | Protein collection ID                      |
+| Protein\_Collection     | Protein collection                         |
+| Description             | Description                                |
+| Reference\_ID           | Reference ID                               |
+| Residue\_Count          | Residue count                              |
+| Monotopic\_Mass         | Monotopic mass                             |
+| Protein\_ID             | Protein ID                                 |
+| Number_Peptides_Used    | Number of peptides used for protein rollup |
+
+The second sheet contains the log2 normalized values at the protein level.
+
+## References
