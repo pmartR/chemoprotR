@@ -23,7 +23,7 @@ install.packages("openxlsx")
 
 Additionally, the package `pmartR` is required to use `chemoprotR`. To download this package, please see the `pmartR` [GitHub page](https://github.com/pmartR/pmartR) for instructions on installation as well as any potential debugging.
 
-In order to install the package `chemoprotR`, a user can go to the [GitLab page](https://code.emsl.pnl.gov/multiomics-analyses/chemoproteomicsR/-/tree/main) and then select the "Clone" button on the top right of the web page shown in **Figure 1**.
+In order to install the package `chemoprotR`, a user can go to the [GitHub page](https://github.com/pmartR/chemoprotR) and then select the "Clone" button on the top right of the web page shown in **Figure 1**.
 
 ![**Figure 1**: Cloning a Repository Button](inst/images/clone.png)
 
