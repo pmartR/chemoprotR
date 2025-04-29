@@ -275,7 +275,7 @@ statResObj <- imd_anova(htp_protein, test_method = "combined", equal_var = FALSE
 # add back in emeta information for results
 # load emeta data
 add_on_emeta <- htp_normalized_bt$e_meta %>%
-  dplyr::select(-dplyr::all_of(mage_cols$job_name)) %>%
+  dplyr::select(-c(dplyr::all_of(mage$job_name),dplyr::all_of(mage$peptide_name))) %>%
   dplyr::distinct()
 
 ```
