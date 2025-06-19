@@ -68,8 +68,15 @@ edat_cname = get_edata_cname(htp_pmart)
 # within that job remove the molecules that are not below a certain msgf threshold
 emetaJobMSGF <- htp_pmart$e_meta[htp_pmart$e_meta[[mage$msgf_specprob_name]] <= msgf,]
 keepPep <- emetaJobMSGF[[edat_cname]]
-cfilt <- custom_filter(htp_pmart,e_data_keep = keepPep)
-htp_msgf <- applyFilt(cfilt,htp_pmart)
+
+if(all(keepPep %in% htp_pmart$e_data$Unique_Peptide)){
+   # if all peptides are less than or equal to specific msgf value, leave the dataset as is
+   htp_msgf <- htp_pmart
+} else {
+   # otherwise filter out the invalid peptides
+   cfilt <- custom_filter(htp_pmart,e_data_keep = keepPep)
+   htp_msgf <- applyFilt(cfilt,htp_pmart)
+}
 
 # sum up redundancy
 htp_no_redundancy <- chemoprotR::redundancy_sum(pmartObj = htp_msgf, mage_names = mage, protein_collect_names = prot_collect, labeled = FALSE)
