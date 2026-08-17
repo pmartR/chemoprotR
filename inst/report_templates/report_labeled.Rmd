@@ -66,6 +66,9 @@ run_iso <- lab_info$run_isobaric
 
 # grouping name
 grouping_name <- lab_info$fdata_info$group_name
+
+# comparisons_df
+comp_df = lab_info$comparisons_df
 ```
 
 ## Isobaric Normalization
@@ -264,13 +267,14 @@ plot(htp_protein,color_by = grouping_name, order_by = grouping_name)
 Analysis of variance (ANOVA) was used to compare each pair of sample groups when sufficient observations (at least 2 in each group being compared) were present for this test. **Figure 6** shows the number of significant differences (unadjusted p-value < 0.05) between each pair of groups, along with a volcano plot.
 
 ```{r}
-# htp_protein2 <- htp_protein
-# # run imdanova_filter on the protein leveld data
-# myfilt <- imdanova_filter(htp_protein2)
-# htp_protein2 <- applyFilt(myfilt, htp_protein2,min_nonmiss_anova = 2)
+# run imd_anova
+if(nrow(comp_df) > 0){
+   statResObj <- imd_anova(htp_protein, test_method = "combined", equal_var = FALSE,
+                        comparisons = comp_df)
+} else {
+   statResObj <- imd_anova(htp_protein, test_method = "combined", equal_var = FALSE)
+}
 
-# run statRes objects
-statResObj <- imd_anova(htp_protein, test_method = "combined", equal_var = FALSE)
 
 # add back in emeta information for results
 # load emeta data

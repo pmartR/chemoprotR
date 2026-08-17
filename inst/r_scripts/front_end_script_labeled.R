@@ -53,6 +53,10 @@ normalization_info <- data.frame(reference_name = "Reference",
                                  norm_fn = "median",
                                  backtransform = TRUE)
 
+comparisons_df <- data.frame(check.names = FALSE,
+                             Control = c(),
+                             Test = c())
+
 # rollup_method can take the values: rollup, rrollup, or summation
 # centering_fn can take the values: mean, median, (or none if using summation)
 rollup_info <- data.frame(rollup_method = "summation",
@@ -85,7 +89,8 @@ labeled_information <- list(pmartObj = htp_pmart_cleaned,msgf = msgf,fdata_info 
                             analysis_info = analysis_cols,mage_info = mage_cols,norm_info = normalization_info,
                             protein_info = protein_collection_cols,data_name = mydata,
                             rollup_info = rollup_info, outlier_info = outlier_samples,
-                            run_isobaric = run_isobaric)
+                            run_isobaric = run_isobaric, comparisons_info = comparisons_df)
+check_labeled_information(labeled_information)
 saveRDS(labeled_information,here("Data","labeled_information.RDS"))
 
 # step 5: render markdown and results ##########################################

@@ -55,6 +55,10 @@ protein_collection_cols <- data.frame(proteinName_name = "protein_name",
 normalization_info <- data.frame(norm_fn = "mean",
                                  backtransform = TRUE)
 
+comparisons_df <- data.frame(check.names = FALSE,
+                             Control = c(),
+                             Test = c())
+
 # rollup_method can take the values: rollup, rrollup, or summation
 # centering_fn can take the values: mean, median, (or none if using summation)
 rollup_info <- data.frame(rollup_method = "summation",
@@ -82,7 +86,8 @@ htp_pmart_cleaned <- clean_chemoprot_unlabeled(dat_list,tab_names,mage_cols,fdat
 unlabeled_information <- list(pmartObj = htp_pmart_cleaned,msgf = msgf,
                               fdata_info = fdata_cols,mage_info = mage_cols, norm_info = normalization_info,
                               protein_info = protein_collection_cols,data_name = mydata, rollup_info = rollup_info,
-                              outlier_info = outlier_samples)
+                              outlier_info = outlier_samples, comparisons_info = comparisons_df)
+check_unlabeled_information(unlabeled_information)
 saveRDS(unlabeled_information,here("Data","unlabeled_information.RDS"))
 
 # remove xlsx from data_name
