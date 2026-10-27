@@ -65,7 +65,7 @@ names(dat_list) <- sheet_names
 
 # step 4: run cleaning chemoprot function ######################################
 # create pmartObj
-htp_pmart_cleaned <- clean_chemoprot_labeled(dat_list,tab_names,mage_cols,analysis_cols,
+htp_pmart_cleaned <- clean_chemoprot_labeled_msgf(dat_list,tab_names,mage_cols,analysis_cols,
                                      reporter_cols,fdata_cols,normalization_info)
 # save the results and msgf/job information
 labeled_information <- list(pmartObj = htp_pmart_cleaned,msgf = msgf,fdata_info = fdata_cols,

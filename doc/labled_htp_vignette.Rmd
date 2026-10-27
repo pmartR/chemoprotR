@@ -148,7 +148,7 @@ Within this code chunk, the user cleans data to create an object that is compati
 ```{r}
 # step 4: run cleaning chemoprot function ######################################
 # create pmartObj
-htp_pmart_cleaned <- clean_chemoprot_labeled(dat_list,tab_names,mage_cols,analysis_cols,
+htp_pmart_cleaned <- clean_chemoprot_labeled_msgf(dat_list,tab_names,mage_cols,analysis_cols,
                                         reporter_cols,fdata_cols,protein_collection_cols)
 # save the results and msgf/job information
 labeled_information <- list(pmartObj = htp_pmart_cleaned,msgf = msgf,fdata_info = fdata_cols,

@@ -10,7 +10,7 @@ library(readxl)
 library(chemoprotR)
 library(here)
 
-here::i_am("Code/front_end_script_unlabeled.R")
+here::i_am("Code/front_end_script_unlabeled_msgf.R")
 
 # step 2: enter in the arguments ###############################################
 # mydata is the name of xlsx file that we are loading in
@@ -80,18 +80,18 @@ data_name <- stringr::str_remove(mydata,".xlsx")
 
 # step 4: run cleaning chemoprot function ######################################
 # create pmartObj
-htp_pmart_cleaned <- clean_chemoprot_unlabeled(dat_list,tab_names,mage_cols,fdata_cols,
+htp_pmart_cleaned <- clean_chemoprot_unlabeled_msgf(dat_list,tab_names,mage_cols,fdata_cols,
                                                protein_collection_cols)
 # save the results and msgf/job information
 unlabeled_information <- list(pmartObj = htp_pmart_cleaned,msgf = msgf,
                               fdata_info = fdata_cols,mage_info = mage_cols, norm_info = normalization_info,
                               protein_info = protein_collection_cols,data_name = mydata, rollup_info = rollup_info,
                               outlier_info = outlier_samples, comparisons_info = comparisons_df)
-check_unlabeled_information(unlabeled_information)
+check_unlabeled_information_msgf(unlabeled_information)
 saveRDS(unlabeled_information,here("Data","unlabeled_information.RDS"))
 
 # remove xlsx from data_name
 # step 5: render markdown and results ##########################################
 # run this for loop to generate reports for each job
-rmarkdown::render(input = here("Code","report_unlabeled.Rmd"),
-                  output_file = paste0("report_unlabeled_",data_name,".html"))
+rmarkdown::render(input = here("Code","report_unlabeled_msgf.Rmd"),
+                  output_file = paste0("report_unlabeled_msgf_",data_name,".html"))

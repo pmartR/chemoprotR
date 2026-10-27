@@ -48,7 +48,7 @@ test_that('cleans labeled chemoproteomics to be able to use with pmartR function
                                         proteinID_name = "Protein_ID")
   
   # must be a list and not data.frame
-  expect_error(clean_chemoprot_labeled(dat_list = labeled_data$T_Data,
+  expect_error(clean_chemoprot_labeled_msgf(dat_list = labeled_data$T_Data,
                                        tab_names = tab_info,
                                        mage_cols = mage_info,
                                        analysis_cols = analysis_info,
@@ -58,7 +58,7 @@ test_that('cleans labeled chemoproteomics to be able to use with pmartR function
                "dat_list must be a list and not a data.frame")
   
   # tab_info must be the names of dat_list
-  expect_error(clean_chemoprot_labeled(dat_list = labeled_data,
+  expect_error(clean_chemoprot_labeled_msgf(dat_list = labeled_data,
                                        tab_names = mage_info,
                                        mage_cols = mage_info,
                                        analysis_cols = analysis_info,
@@ -68,7 +68,7 @@ test_that('cleans labeled chemoproteomics to be able to use with pmartR function
                "The following argument in tab_names is not a name found in")
   
   # mage_info must be column names in Mage
-  expect_error(clean_chemoprot_labeled(dat_list = labeled_data,
+  expect_error(clean_chemoprot_labeled_msgf(dat_list = labeled_data,
                                        tab_names = tab_info,
                                        mage_cols = tab_info,
                                        analysis_cols = analysis_info,
@@ -78,7 +78,7 @@ test_that('cleans labeled chemoproteomics to be able to use with pmartR function
                "The following argument in mage_cols is not a column name found in")
   
   # analysis_info must be column names in analysis
-  expect_error(clean_chemoprot_labeled(dat_list = labeled_data,
+  expect_error(clean_chemoprot_labeled_msgf(dat_list = labeled_data,
                                        tab_names = tab_info,
                                        mage_cols = mage_info,
                                        analysis_cols = tab_info,
@@ -88,7 +88,7 @@ test_that('cleans labeled chemoproteomics to be able to use with pmartR function
                "The following argument in analysis_cols is not a column name found in")
   
   # reporter_info must be column names in reporter
-  expect_error(clean_chemoprot_labeled(dat_list = labeled_data,
+  expect_error(clean_chemoprot_labeled_msgf(dat_list = labeled_data,
                                        tab_names = tab_info,
                                        mage_cols = mage_info,
                                        analysis_cols = analysis_info,
@@ -98,7 +98,7 @@ test_that('cleans labeled chemoproteomics to be able to use with pmartR function
                "The following argument in reporter_cols is not a column name found in")
 
   # fdata_info must be column names in fdata
-  expect_error(clean_chemoprot_labeled(dat_list = labeled_data,
+  expect_error(clean_chemoprot_labeled_msgf(dat_list = labeled_data,
                                        tab_names = tab_info,
                                        mage_cols = mage_info,
                                        analysis_cols = analysis_info,
@@ -110,7 +110,7 @@ test_that('cleans labeled chemoproteomics to be able to use with pmartR function
   # ionization samples must match between reporter ions and fdata
   labeled_data2 <- labeled_data
   labeled_data2$f_data$Ionization <- stringr::str_remove(labeled_data2$f_data$Ionization,"Ion_")
-  expect_error(clean_chemoprot_labeled(dat_list = labeled_data2,
+  expect_error(clean_chemoprot_labeled_msgf(dat_list = labeled_data2,
                                        tab_names = tab_info,
                                        mage_cols = mage_info,
                                        analysis_cols = analysis_info,
@@ -120,7 +120,7 @@ test_that('cleans labeled chemoproteomics to be able to use with pmartR function
                "The names of the ionization modes must match the columns pertaining to those ionization modes")
   
   # protein collection information
-  expect_error(clean_chemoprot_labeled(dat_list = labeled_data,
+  expect_error(clean_chemoprot_labeled_msgf(dat_list = labeled_data,
                                        tab_names = tab_info,
                                        mage_cols = mage_info,
                                        analysis_cols = analysis_info,
@@ -130,7 +130,7 @@ test_that('cleans labeled chemoproteomics to be able to use with pmartR function
                "The following argument in")
   
   # run the actual thing now  --------------------------------------------------
-  cleaning_labeled <- clean_chemoprot_labeled(dat_list = labeled_data,
+  cleaning_labeled <- clean_chemoprot_labeled_msgf(dat_list = labeled_data,
                                                tab_names = tab_info,
                                                mage_cols = mage_info,
                                                analysis_cols = analysis_info,

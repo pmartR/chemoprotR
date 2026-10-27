@@ -49,8 +49,9 @@ overflow: visible;
 }
 </style>
 <style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -61,7 +62,7 @@ div.sourceCode { overflow: auto; }
 }
 @media print {
 pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
 pre.numberSource code
 { counter-reset: source-line 0; }
@@ -395,11 +396,11 @@ the front end script.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(chemoprotR)</span>
 <span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">library</span>(here)</span></code></pre></div>
-<pre><code>## here() starts at /Users/leac176/gitrepos/chemoproteomicsR</code></pre>
+<pre><code>## here() starts at /Users/leac176/gitrepos/chemoprotR</code></pre>
 <p>The following line of code helps R locate other files within the R
 Project and directory.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>here<span class="sc">::</span><span class="fu">i_am</span>(<span class="st">&quot;Code/front_end_script_labeled.R&quot;</span>)</span></code></pre></div>
-<pre><code>## here() starts at /Users/leac176/gitrepos/chemoproteomicsR/vignettes</code></pre>
+<pre><code>## here() starts at /Users/leac176/gitrepos/chemoprotR/vignettes</code></pre>
 </div>
 <div id="step-2-specify-parameters" class="section level5">
 <h5>Step 2: Specify Parameters</h5>
@@ -491,7 +492,7 @@ manipulating the data to fit an S3 object compatible with
 capabilities.</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># step 4: run cleaning chemoprot function ######################################</span></span>
 <span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co"># create pmartObj</span></span>
-<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>htp_pmart_cleaned <span class="ot">&lt;-</span> <span class="fu">clean_chemoprot_labeled</span>(dat_list,tab_names,mage_cols,analysis_cols,</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>htp_pmart_cleaned <span class="ot">&lt;-</span> <span class="fu">clean_chemoprot_labeled_msgf</span>(dat_list,tab_names,mage_cols,analysis_cols,</span>
 <span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>                                        reporter_cols,fdata_cols,protein_collection_cols)</span></code></pre></div>
 <pre><code>## 65830 instances of 0 have been replaced with NA</code></pre>
 <pre><code>## 58201 instances of 0 have been replaced with NA</code></pre>

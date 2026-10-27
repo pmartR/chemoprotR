@@ -1,9 +1,10 @@
-#' Clean Unlabeled Chemoproteomics Data
+#' Clean Unlabeled Chemoproteomics Data for MSGF/MASIC Processing
 #' 
 #' This function takes unlabeled chemoproteomics data from an excel format 
 #' and returns an S3 object compatible with another R package, pmartR, that 
 #' can then be ran in a markdown file for further filtering, normalization,
-#' and statistical analyses
+#' and statistical analyses. This function is used for data processed using
+#' MSGF/MASIC.
 #' 
 #' @param dat_list List containing information from each of the different TMT excel sheets
 #' @param tab_names 1 x n data.frame specifying the names of the n different excel sheets
@@ -48,13 +49,13 @@
 #'                       proteinID_name = "protein_id")
 #' normalization_info <- data.frame(norm_fn = "mean",
 #'                                  backtransform = TRUE)
-#' htp_pmart_cleaned <- clean_chemoprot_unlabeled(labelfree_setup,tb_name,mg_col,f_col,pro_col)
+#' htp_pmart_cleaned <- clean_chemoprot_unlabeled_msgf(labelfree_setup,tb_name,mg_col,f_col,pro_col)
 #' 
 #' @author Damon Leach, Kelly Stratton
 #' 
 #' @export
 #' 
-clean_chemoprot_unlabeled <- function(dat_list,tab_names,
+clean_chemoprot_unlabeled_msgf <- function(dat_list,tab_names,
                             mage_cols,fdata_cols,
                             protein_collection_cols){
   

@@ -1,4 +1,4 @@
-#' Check Labeled Chemoproteomics Data
+#' Check Labeled Chemoproteomics Data for MSGF/MASIC Processing
 #' 
 #' This function
 #' 
@@ -10,7 +10,7 @@
 #' 
 #' @export
 #' 
-check_labeled_information <- function(labeled_info){
+check_labeled_information_msgf <- function(labeled_info){
   if(!is.list(labeled_info)){
     stop( paste0("labeled_info must be a named list"))
   }

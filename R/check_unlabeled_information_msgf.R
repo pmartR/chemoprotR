@@ -1,6 +1,6 @@
-#' Check Unlabeled Chemoproteomics Data
+#' Check Unlabeled Chemoproteomics Data for MSGF/MASIC Processing
 #' 
-#' This function
+#' This function checks if the data provided for unlabeled data
 #' 
 #' @param unlabeled_info unlabeled information that will be passed onto rmarkdown vignette template
 #'  
@@ -10,7 +10,7 @@
 #' 
 #' @export
 #' 
-check_unlabeled_information <- function(unlabeled_info){
+check_unlabeled_information_msgf <- function(unlabeled_info){
   
   if(!is.list(unlabeled_info)){
     stop( paste0("unlabeled_info must be a named list"))

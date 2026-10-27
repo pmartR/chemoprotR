@@ -214,7 +214,7 @@ data_name <- stringr::str_remove(mydata,".xlsx")
 Similar to Step 3, the user should not have to adjust any lines of code within Step 4. Within this code chunk, the data are cleaned to create an object that is compatible with the R package `pmartR`. The package `pmartR` has many built in capabilities from quality control filtering and normalization to data visualizations and statistical analyses. The following code manipulates the data to the format required by `pmartR` so that `chemoprotR` can leverage `pmartR`'s capabilities. The cleaned data are then saved.
 
 ```{r}
-htp_pmart_cleaned <- clean_chemoprot_labeled(dat_list,tab_names,mage_cols,analysis_cols,
+htp_pmart_cleaned <- clean_chemoprot_labeled_msgf(dat_list,tab_names,mage_cols,analysis_cols,
                                              reporter_cols,fdata_cols,protein_collection_cols)
 labeled_information <- list(pmartObj = htp_pmart_cleaned,msgf = msgf,fdata_info = fdata_cols,
                             analysis_info = analysis_cols,mage_info = mage_cols,norm_info = normalization_info,

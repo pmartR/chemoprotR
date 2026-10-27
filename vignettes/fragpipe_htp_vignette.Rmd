@@ -1,0 +1,178 @@
+---
+title: "Fragpipe HTP Chemoproteomics Workflow"
+author: "Damon Leach, Kelly Stratton"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Labeled HTP Chemoproteomics Workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+### Introduction
+
+Within the `chemoprotR` package, there are capabilities for running both labeled and unlabeled TMT data. Here, we discuss the workflow for data using Fragpipe. In order to run analyses for high-throughput (HTP) data from fragpipe, there are three main elements within this package:
+
+1. Front End Script
+2. Back End Code
+3. Automatically Generated Report
+
+An individual using this package only needs to be responsible for updating the front end script for the analyses to run based on the specific contexts of the data.
+
+### Before Running Scripts
+
+There are a few tasks that must be completed before a user can start updating the front end script.
+
+First, the user must create a folder for the project. Within that folder, the user must create 4 additional folders:
+
+- Code
+- Data
+- Processed_Data
+- Results
+
+The user then must place the excel files with the data into the "Data" folder. The user also places the front end script, report template, and bibliography file into the "Code" folder.
+
+Next, the user must create an R project. The user then selects the drop down menu on the top right corner of R Studio and selects the option "New Project". If the user does not have any current projects open, the drop down title will be "Project: (none)". Otherwise, the drop down menu will show the name of the current project.
+
+Next, select the option to create a project from an existing directory and select the main folder that was created for the project.
+
+By creating an R project, R is better equipped to be able to find files regardless of the exact file pathway for each individual computer, allowing for easier sharing abilities between individuals.
+
+### Front End Script
+
+This next portion of the vignette explains the different aspects of the front end script.
+
+##### Step 1: Set up File
+
+For this pipeline, the following packages are required:
+
+```{r}
+library(readxl)
+library(chemoprotR)
+library(here)
+library(MSnSet.utils)
+```
+
+The following line of code helps R locate other files within the R Project and directory.
+
+```{r}
+here::i_am("Code/front_end_script_fragpipe.R")
+```
+
+##### Step 2: Specify Parameters
+
+Within the fragpipe framework, there are two main data objects a user needs to provide:
+
+1. TSV object with proteomics data (which will get processed using the R package MSnSet.utils)
+2. CSV with experimental study design
+
+For the purpose of this vignette, data is loaded using example data from the package `chemoprotR`. However, we include the line of code that will be used typically for the front end script.
+
+```{r, eval = FALSE}
+# study_design is the name of csv file that we are loading in for study design information
+study_design = "study_design_adj.csv"
+# mydata is the name of tsv file that we are loading in for experimental data
+mydata = "ratio_gene_None.tsv"
+```
+
+```{r, echo = FALSE}
+data("fragpipe_m")
+data("fragpipe_study_df")
+mydata = fragpipe_m
+study_design = fragpipe_study_df
+```
+
+```{r}
+# normalization preferences
+# norm_fn can take the following values: "mean" or "median"
+# backtransform can take the following values: TRUE or FALSE
+normalization_info <- data.frame(norm_fn = "mean",
+                                 backtransform = TRUE)
+
+# list outliers to be removed (recommend leaving this blank for first pass at data
+# and then running the report a second time with outliers to remove if there are any)
+outlier_samples <- c()
+```
+
+##### Step 3: Load in Data
+
+Once those values have been adjusted accordingly based on the experiment, the rest of the code should not have to be altered. In this code chunk, the user officially loads the data into R as a list and renames the elements of the list to be the tabnames from Excel.
+
+```{r, eval = FALSE}
+# put xlsx object into more R friendly formatting
+fragpipe_obj <- read_FragPipe_TMT(here("Data",mydata))
+# this creates a list with each element being a sheet by its corresponding name
+study_df <- read.csv(here("Data",study_design))
+
+# step 4: run cleaning chemoprot function ######################################
+# create pmartObj
+htp_pmart_cleaned <- clean_chemoprot_fragpipe(m = fragpipe_obj,
+                                              study_df = study_df)
+# save the results and msgf/job information
+fragpipe_information <- list(pmartObj = htp_pmart_cleaned,
+                             norm_info = normalization_info,
+                             data_name = mydata,
+                             rollup_info = rollup_info,
+                             outlier_info = outlier_samples)
+saveRDS(fragpipe_information,here("Data","fragpipe_information.RDS"))
+```
+
+```{r, echo = FALSE}
+dat_list <- data
+```
+
+##### Step 4: Clean the Data
+
+Within this code chunk, the user cleans data to create an object that is compatible with `pmartR`. The package `pmartR` has many built in capabilities from quality control filtering and normalization to data visualizations and statistical analyses. By manipulating the data to fit an S3 object compatible with `pmartR`, `chemoprotR` is able to utilize those capabilities.
+
+```{r}
+# step 4: run cleaning chemoprot function ######################################
+# create pmartObj
+htp_pmart_cleaned <- clean_chemoprot_labeled_msgf(dat_list,tab_names,mage_cols,analysis_cols,
+                                        reporter_cols,fdata_cols,protein_collection_cols)
+# save the results and msgf/job information
+labeled_information <- list(pmartObj = htp_pmart_cleaned,msgf = msgf,fdata_info = fdata_cols,
+                            analysis_info = analysis_cols,mage_info = mage_cols,norm_info = normalization_info,
+                            protein_info = protein_collection_cols)
+```
+
+```{r, eval = FALSE}
+saveRDS(labeled_information,paste0(here("Data",data),"labeled_information.RDS"))
+```
+
+##### Step 5: Render Report
+
+The last step is the render the report. For labeled data, the data is analyzed based on job number, so if there are more than one job being ran, this code runs iteratively to render as many reports as there are jobs in the experiment.
+
+```{r, eval = FALSE}
+# run this for loop to generate reports for each job
+for(i in 1:length(htp_pmart_cleaned)){
+  rmarkdown::render(input = here("Code","report_labeled.Rmd"),
+                    output_file = paste0("report_labeled_job_",unique(htp_pmart_cleaned[[i]]$e_meta$Job),".html"))
+}
+```
+
+### Report
+
+The reports that are generated are rendered automatically and the user does not need to alter the Rmarkdown file pertaining to the report. The file is broken down into the following sections:
+
+- Software Used
+- Isobaric Normalization
+  - The data is normalized with regards to the reference plate
+- Potential Outliers
+  - Potential outliers are identified and plotted. If the user specifies any outliers to be removed in the front-end script, those samples are removed here
+- Filters
+  - Number of missing values per sample are plotted
+  - Remove molecules with MSGF spectral probability greater than the specified value
+  - Sum up peptide redundancies
+- Normalization
+  - Data is normalized using either median or mean centering. The user can specify whether the data should be backtransformed after undergoing normalization or not.
+- Protein Quantitation
+  - Rollup method
+- Reverse Hits/Contaminants
+  - Proteins associated with reverse hits or contaminants are removed from the data.
+- Statistical Results
+  - ANOVA and g-test analyses are conducted on the data
+  - Bar plots and volcano plots to visualize the results
+  - Table containing fold change information, count data, and significance levels for each molecule is created
+  - Table containing the log2 normalized abundance values are also generated
+- References

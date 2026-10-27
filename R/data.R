@@ -87,3 +87,36 @@ NULL
 #' @rdname labelfree_pmart
 #' @name labelfree_pmart
 NULL
+
+# fragpipe_m --------------------------------------------------------
+
+#' fragpipe msnset object
+#'
+#' These data originates from the fragpipe approach.
+#'
+#' @format An MSnSet object
+#' @rdname fragpipe_m
+#' @name fragpipe_m
+NULL
+
+
+# fragpipe_study_df --------------------------------------------------------
+
+#' fragpipe study design data frame
+#'
+#' These data originates from the labelfree_setup dataset. However, the data
+#' has been transformed and filtered such that the data is compatible with pmartR
+#'
+#' @format A data.frameobject with at least three columns: SampleID, ProbeGroup, ExperimentName
+#' \describe{
+#'   \item{SampleID}{names of the sample IDs, must match the sample names from 
+#'   the MSnSet object fragpipe_m}
+#'   \item{ProbeGroup}{corresponds to what probe group the sample belongs 
+#'   to (such as Probe, No Probe, Competitor, etc.)}
+#'   \item{ExperimentName}{corresponds to the specific experiment that the sample
+#'   belongs to, particularly if there are more than one experiment being processed
+#'   at once}
+#' }
+#' @rdname fragpipe_study_df
+#' @name fragpipe_study_df
+NULL

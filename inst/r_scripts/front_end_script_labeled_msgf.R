@@ -10,7 +10,7 @@ library(readxl)
 library(chemoprotR)
 library(here)
 
-here::i_am("Code/front_end_script_labeled.R")
+here::i_am("Code/front_end_script_labeled_msgf.R")
 
 # step 2: enter in the arguments ###############################################
 # labeled
@@ -82,7 +82,7 @@ data_name <- stringr::str_remove(mydata,".xlsx")
 
 # step 4: run cleaning chemoprot function ######################################
 # create pmartObj
-htp_pmart_cleaned <- clean_chemoprot_labeled(dat_list,tab_names,mage_cols,analysis_cols,
+htp_pmart_cleaned <- clean_chemoprot_labeled_msgf(dat_list,tab_names,mage_cols,analysis_cols,
                                      reporter_cols,fdata_cols,protein_collection_cols)
 # save the results and msgf/job information
 labeled_information <- list(pmartObj = htp_pmart_cleaned,msgf = msgf,fdata_info = fdata_cols,
@@ -90,7 +90,7 @@ labeled_information <- list(pmartObj = htp_pmart_cleaned,msgf = msgf,fdata_info 
                             protein_info = protein_collection_cols,data_name = mydata,
                             rollup_info = rollup_info, outlier_info = outlier_samples,
                             run_isobaric = run_isobaric, comparisons_info = comparisons_df)
-check_labeled_information(labeled_information)
+check_labeled_information_msgf(labeled_information)
 saveRDS(labeled_information,here("Data","labeled_information.RDS"))
 
 # step 5: render markdown and results ##########################################
@@ -98,7 +98,7 @@ num_jobs = length(htp_pmart_cleaned)
 job_names = names(htp_pmart_cleaned)
 # run this for loop to generate reports for each job
 for(i in 1:num_jobs){
-  rmarkdown::render(input = here("Code","report_labeled.Rmd"),
-                    output_file = paste0("report_labeled_",data_name,"_",job_names[i],".html"))
+  rmarkdown::render(input = here("Code","report_labeled_msgf.Rmd"),
+                    output_file = paste0("report_labeled_msgf_",data_name,"_",job_names[i],".html"))
 
 }

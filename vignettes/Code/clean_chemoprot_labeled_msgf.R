@@ -1,6 +1,6 @@
 # this function will later be in its own file but lives here currently
 # takes in the dat_list object and all the sheet names
-clean_chemoprot_labeled <- function(dat_list,tab_names,
+clean_chemoprot_labeled_msgf <- function(dat_list,tab_names,
                             mage_cols,analysis_cols,reporter_cols, fdata_cols,
                             normalization_info){
   

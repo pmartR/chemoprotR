@@ -1,9 +1,10 @@
-#' Clean Labeled Chemoproteomics Data
+#' Clean Labeled Chemoproteomics Data for MSGF/MASIC Processing
 #' 
 #' This function takes labeled chemoproteomics data from an excel format 
 #' and returns an S3 object compatible with another R package, pmartR, that 
 #' can then be ran in a markdown file for further filtering, normalization,
-#' and statistical analyses
+#' and statistical analyses. This function is used for data processed using
+#' MSGF/MASIC.
 #' 
 #' @param dat_list List containing information from each of the different TMT excel sheets
 #' @param tab_names 1 x n data.frame specifying the names of the n different excel sheets
@@ -47,13 +48,13 @@
 #'                          plex_name = "Plex",
 #'                          ionization_name = "Ionization")
 #' pro_col <- data.frame(proteinName_name = "protein_name")
-#' htp_clean <- clean_chemoprot_labeled(label_setup,tb_name,mg_col,anlys_col,rep_col,f_col,pro_col)
+#' htp_clean <- clean_chemoprot_labeled_msgf(label_setup,tb_name,mg_col,anlys_col,rep_col,f_col,pro_col)
 #' 
 #' @author Damon Leach, Kelly Stratton
 #' 
 #' @export
 #' 
-clean_chemoprot_labeled <- function(dat_list,tab_names,
+clean_chemoprot_labeled_msgf <- function(dat_list,tab_names,
                                     mage_cols,analysis_cols,reporter_cols, fdata_cols,
                                     protein_collection_cols){
   

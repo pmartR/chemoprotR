@@ -15,12 +15,12 @@ These objects are imported from other packages. Follow the links
 below to see their documentation.
 
 \describe{
-  \item{here}{\code{\link[here]{i_am}}}
+  \item{here}{\code{\link[here:i_am]{i_am()}}}
 
-  \item{magrittr}{\code{\link[magrittr:pipe]{\%>\%}}}
+  \item{magrittr}{\code{\link[magrittr:\%>\%]{\%>\%}}}
 
-  \item{readxl}{\code{\link[readxl]{read_excel}}}
+  \item{readxl}{\code{\link[readxl:read_excel]{read_excel()}}}
 
-  \item{stats}{\code{\link[stats]{median}}, \code{\link[stats]{setNames}}}
+  \item{stats}{\code{\link[stats:median]{median()}}, \code{\link[stats:setNames]{setNames()}}}
 }}
 

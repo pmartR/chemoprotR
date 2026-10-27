@@ -31,7 +31,7 @@ R 4.2.1 [@R] was used for all computations. The following packages were used:
 
 ```{r}
 # let R know where you are
-here::i_am("Code/report_labeled.Rmd")
+here::i_am("Code/report_labeled_msgf.Rmd")
 
 # load in the data
 lab_info <- readRDS(here("Data","labeled_information.RDS"))
